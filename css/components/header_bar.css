@@ -6,11 +6,9 @@
     display: flex;
 }
 
-.hedaer_bar__logobox{
+.header_bar__logobox{
     height: 150px;
     width: 278px;
-
-    /* border: 3px solid black; */
 
     display: flex;
     justify-content: center;
@@ -18,11 +16,9 @@
 
     font-size: var(--logo-font-size);
     font-weight: var(--logo-font-weight);
-
-    
 }
 
-.hedaer_bar__logobox a{
+.header_bar__logobox a{
     color: #3B82F6;
 
     display: flex;
@@ -31,15 +27,17 @@
     align-items: center;
 }
 
-.hedaer_bar__nav{
-    width: 100%;
+.header_bar__nav{
+    /* 로고 옆 남는 공간을 유연하게 차지하고 줄어들도록 */
+    flex: 1 1 auto;
+    /* 플렉스 아이템이 내용 때문에 부모를 밀어내지 않게 */
+    min-width: 0;
     height: 150px;
 
     display: flex;
 }
 
-.hedaer_bar__nav__box{
-    /* border: 3px solid black; */
+.header_bar__nav__box{
     width: 160px;
     height: 150px;
 
@@ -53,50 +51,65 @@
     color: white;
     text-shadow: 0px 1px black;
 }
-.hedaer_bar__nav__box:nth-child(2){
+.header_bar__nav__box:nth-child(2){
     padding-left: 5%;
     padding-right: 5%;
 }
 
-.hedaer_bar__nav__box,
-.hedaer_bar__logobox {
-  transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease;
-  cursor: pointer; /* 마우스 올리면 손가락 모양 */
+.header_bar__nav__box,
+.header_bar__logobox {
+    /* 호버 인터랙션을 부드럽게 */
+    transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease;
+    cursor: pointer; /* 클릭 가능한 느낌 */
 }
 
-.hedaer_bar__nav__box:hover,
-.hedaer_bar__logobox:hover {
-  transform: translateY(8px); /* 아래로 내려오기 */
-  box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.2); /* 위쪽 그림자 */
-  background-color: rgba(0, 0, 0, 0.273); /* 배경 약간 어둡게 */
+.header_bar__nav__box:hover,
+.header_bar__logobox:hover {
+    transform: translateY(8px); /* 살짝 눌리는 느낌 */
+    box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.2); /* 눌림 강조(위쪽 그림자) */
+    background-color: rgba(0, 0, 0, 0.273); /* 호버 시 대비 강화 */
 }
 
 /* ===== 반응형 ===== */
 /* 1 ~ 799px */
 @media screen and (max-width: 799px) {
     .header_bar{
-        height: 120px;
+        height: 100px;
     }
-    .hedaer_bar__logobox{
-        height: 120px;
-        width: 200px;
-        /* 폰트는 변수 사용 (variables.css에서 값 변경됨) */
+    .header_bar__logobox{
+        height: 100px;
+        width: 100px; /* 모바일 로고 최소 폭 */
+        
         font-size: var(--logo-font-size);
         font-weight: var(--logo-font-weight);
+
+        padding-left: 10px;
     }
-    .hedaer_bar__nav{
-        height: 120px;
+    .header_bar__nav{
+        height: 100px;
+        /* 수평 스크롤은 nav 내부로 한정 */
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+
+        display: flex;
+        justify-content: space-around; /* 작은 화면에서 항목 간 여백 유지 */
+
+        padding: 0px 1%;
     }
-    .hedaer_bar__nav__box{
-        height: 120px;
+    .header_bar__nav__box{
+        height: 100px;
         width: 90px;
         font-size: var(--nav-font-size);
         font-weight: var(--nav-font-weight);
     }
-    /* .hedaer_bar__nav__box:nth-child(2){
-        margin-left: 10px;
-        margin-right: 10px;
-    } */
+    .header_bar__nav__box:nth-child(2){
+        padding-left: 5%;
+        padding-right: 5%; /* 2번째 항목 좌우 여백으로 시각적 균형 */
+    }
+
+    .header_bar__logobox p:last-child{
+        display: none; /* 모바일에서는 서브타이틀 숨김 */
+    }
 }
 
 /* 800 ~ 1279px */
@@ -104,16 +117,16 @@
     .header_bar{
         height: 130px;
     }
-    .hedaer_bar__logobox{
+    .header_bar__logobox{
         height: 130px;
         width: 240px;
         font-size: var(--logo-font-size);
         font-weight: var(--logo-font-weight);
     }
-    .hedaer_bar__nav{
+    .header_bar__nav{
         height: 130px;
     }
-    .hedaer_bar__nav__box{
+    .header_bar__nav__box{
         height: 130px;
         width: 120px;
         font-size: var(--nav-font-size);
@@ -126,16 +139,16 @@
     .header_bar{
         height: 140px;
     }
-    .hedaer_bar__logobox{
+    .header_bar__logobox{
         height: 140px;
         width: 260px;
         font-size: var(--logo-font-size);
         font-weight: var(--logo-font-weight);
     }
-    .hedaer_bar__nav{
+    .header_bar__nav{
         height: 140px;
     }
-    .hedaer_bar__nav__box{
+    .header_bar__nav__box{
         height: 140px;
         width: 140px;
         font-size: var(--nav-font-size);

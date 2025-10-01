@@ -9,9 +9,9 @@
 /* 모바일 (1 ~ 799px) */
 @media screen and (max-width: 799px) {
   :root {
-    --logo-font-size: 20px;
+    --logo-font-size: 16px;
     --logo-font-weight: 900;
-    --nav-font-size: 20px;
+    --nav-font-size: 16px;
     --nav-font-weight: 900;
   }
 }
