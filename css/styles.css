@@ -1,9 +1,8 @@
-/* reset file */
 @import "./reset.css";
+@import "variables.css";
 
 /* components */
 @import "./components/header_bar.css";
 
 /* screens */
 @import "./screens/mainpage.css";
-
