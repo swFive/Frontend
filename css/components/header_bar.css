@@ -36,8 +36,8 @@
     width: 160px;
     height: 150px;
 
-    font-size: 30px;
-    font-weight: 900;
+    font-size: var(--navboxfontsize);
+    font-weight: var(--navboxfontweight);
 
     display: flex;
     justify-content: center;

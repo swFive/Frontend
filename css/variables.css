@@ -1,4 +1,7 @@
 :root{
     --logosize: 30px;
     --logoweight: 900;
+
+    --navboxfontsize: 30px;
+    --navboxfontweight: 900;
 }
