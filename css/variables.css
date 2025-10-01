@@ -1,7 +1,37 @@
-:root{
-    --logosize: 30px;
-    --logoweight: 900;
+/* 기본값 (데스크톱 1280~1920px 가정) */
+:root {
+  --logo-font-size: 30px;
+  --logo-font-weight: 900;
+  --nav-font-size: 30px;
+  --nav-font-weight: 900;
+}
 
-    --navboxfontsize: 30px;
-    --navboxfontweight: 900;
+/* 모바일 (1 ~ 799px) */
+@media screen and (max-width: 799px) {
+  :root {
+    --logo-font-size: 20px;
+    --logo-font-weight: 900;
+    --nav-font-size: 20px;
+    --nav-font-weight: 900;
+  }
+}
+
+/* 태블릿/작은 데스크톱 (800 ~ 1279px) */
+@media screen and (min-width: 800px) and (max-width: 1279px) {
+  :root {
+    --logo-font-size: 25px;
+    --logo-font-weight: 900;
+    --nav-font-size: 25px;
+    --nav-font-weight: 900;
+  }
+}
+
+/* 데스크톱 (1280 ~ 1920px) */
+@media screen and (min-width: 1280px) and (max-width: 1920px) {
+  :root {
+    --logo-font-size: 28px;
+    --logo-font-weight: 900;
+    --nav-font-size: 28px;
+    --nav-font-weight: 900;
+  }
 }

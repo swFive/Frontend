@@ -1,9 +1,8 @@
+/* ===== 공통 ===== */
 .header_bar{
     height: 150px;
     width: 100%;
-
     background-color: #C6DEFD;
-
     display: flex;
 }
 
@@ -19,8 +18,8 @@
     align-items: center;
 
     color: #3B82F6;
-    font-size: var(--logosize);
-    font-weight: var(--logoweight);
+    font-size: var(--logo-font-size);
+    font-weight: var(--logo-font-weight);
 }
 
 .hedaer_bar__nav{
@@ -28,7 +27,6 @@
     height: 150px;
 
     display: flex;
-    
 }
 
 .hedaer_bar__nav__box{
@@ -36,8 +34,8 @@
     width: 160px;
     height: 150px;
 
-    font-size: var(--navboxfontsize);
-    font-weight: var(--navboxfontweight);
+    font-size: var(--nav-font-size);
+    font-weight: var(--nav-font-weight);
 
     display: flex;
     justify-content: center;
@@ -45,4 +43,83 @@
 
     color: white;
     text-shadow: 0px 1px black;
+}
+
+.hedaer_bar__nav__box {
+  transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease;
+  cursor: pointer; /* 마우스 올리면 손가락 모양 */
+}
+
+.hedaer_bar__nav__box:hover {
+  transform: translateY(8px); /* 아래로 내려오기 */
+  box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.2); /* 위쪽 그림자 */
+  background-color: rgba(0, 0, 0, 0.273); /* 배경 약간 어둡게 */
+}
+
+/* ===== 반응형 ===== */
+/* 1 ~ 799px */
+@media screen and (max-width: 799px) {
+    .header_bar{
+        height: 120px;
+    }
+    .hedaer_bar__logobox{
+        height: 120px;
+        width: 200px;
+        /* 폰트는 변수 사용 (variables.css에서 값 변경됨) */
+        font-size: var(--logo-font-size);
+        font-weight: var(--logo-font-weight);
+    }
+    .hedaer_bar__nav{
+        height: 120px;
+    }
+    .hedaer_bar__nav__box{
+        height: 120px;
+        width: 90px;
+        font-size: var(--nav-font-size);
+        font-weight: var(--nav-font-weight);
+    }
+}
+
+/* 800 ~ 1279px */
+@media screen and (min-width: 800px) and (max-width: 1279px) {
+    .header_bar{
+        height: 130px;
+    }
+    .hedaer_bar__logobox{
+        height: 130px;
+        width: 240px;
+        font-size: var(--logo-font-size);
+        font-weight: var(--logo-font-weight);
+    }
+    .hedaer_bar__nav{
+        height: 130px;
+    }
+    .hedaer_bar__nav__box{
+        height: 130px;
+        width: 120px;
+        font-size: var(--nav-font-size);
+        font-weight: var(--nav-font-weight);
+    }
+}
+
+/* 1280 ~ 1921px */
+@media screen and (min-width: 1280px) and (max-width: 1921px) {
+    .header_bar{
+        height: 140px;
+    }
+    .hedaer_bar__logobox{
+        height: 140px;
+        width: 260px;
+        font-size: var(--logo-font-size);
+        font-weight: var(--logo-font-weight);
+    }
+    .hedaer_bar__nav{
+        height: 140px;
+    }
+    .hedaer_bar__nav__box{
+        height: 140px;
+        width: 140px;
+        font-size: var(--nav-font-size);
+        font-weight: var(--nav-font-weight);
+    }
 }
