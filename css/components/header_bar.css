@@ -13,13 +13,22 @@
     /* border: 3px solid black; */
 
     display: flex;
-    flex-direction: column;
     justify-content: center;
     align-items: center;
 
-    color: #3B82F6;
     font-size: var(--logo-font-size);
     font-weight: var(--logo-font-weight);
+
+    
+}
+
+.hedaer_bar__logobox a{
+    color: #3B82F6;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
 }
 
 .hedaer_bar__nav{
@@ -44,13 +53,19 @@
     color: white;
     text-shadow: 0px 1px black;
 }
+.hedaer_bar__nav__box:nth-child(2){
+    padding-left: 5%;
+    padding-right: 5%;
+}
 
-.hedaer_bar__nav__box {
+.hedaer_bar__nav__box,
+.hedaer_bar__logobox {
   transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease;
   cursor: pointer; /* 마우스 올리면 손가락 모양 */
 }
 
-.hedaer_bar__nav__box:hover {
+.hedaer_bar__nav__box:hover,
+.hedaer_bar__logobox:hover {
   transform: translateY(8px); /* 아래로 내려오기 */
   box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.2); /* 위쪽 그림자 */
   background-color: rgba(0, 0, 0, 0.273); /* 배경 약간 어둡게 */
@@ -78,6 +93,10 @@
         font-size: var(--nav-font-size);
         font-weight: var(--nav-font-weight);
     }
+    /* .hedaer_bar__nav__box:nth-child(2){
+        margin-left: 10px;
+        margin-right: 10px;
+    } */
 }
 
 /* 800 ~ 1279px */
