@@ -1,24 +1,38 @@
 :root {
-  --logo-font-size: 30px;
-  --logo-font-weight: 900;
-  --nav-font-size: 30px;
-  --nav-font-weight: 900;
+  --logo-font-size: 18px;
+  --logo-font-weight: 800;
+  --nav-font-size: 16px;
+  --nav-font-weight: 700;
+
+  --bg: #f6f8fb;
+  --topbar: #C6DEFD;
+  --card-radius: 20px;
+  --card-padding: 24px;
+  --muted: #666;
+  --shadow: 0 6px 18px rgba(15,30,50,0.06);
+  --inner-shadow: 0 2px 6px rgba(10,20,30,0.06);
 }
 
-@media (max-width: 639px) {
+@media (min-width: 900px) and (max-width: 1199px) {
   :root {
-    --logo-font-size: 16px;
-    --logo-font-weight: 900;
+    --logo-font-size: 18px;
     --nav-font-size: 16px;
-    --nav-font-weight: 900;
+    --card-padding: 22px;
   }
 }
 
-@media (min-width: 640px) and (max-width: 1279px) {
+@media (min-width: 600px) and (max-width: 899px) {
   :root {
-    --logo-font-size: 25px;
-    --logo-font-weight: 900;
-    --nav-font-size: 25px;
-    --nav-font-weight: 900;
+    --logo-font-size: 18px;
+    --nav-font-size: 16px;
+    --card-padding: 20px;
+  }
+}
+
+@media (max-width: 599px) {
+  :root {
+    --logo-font-size: 16px;
+    --nav-font-size: 14px;
+    --card-padding: 18px;
   }
 }

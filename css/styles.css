@@ -3,6 +3,11 @@
 
 /* components */
 @import "./components/header_bar.css";
+@import "./components/search.css";
+
+/* other components: add imports here if you create more */
 
 /* screens */
 @import "./screens/mainpage.css";
+
+/* root-level styles (if any) */

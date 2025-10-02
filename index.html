@@ -6,14 +6,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MediCheck</title>
     <link rel="stylesheet" href="./css/styles.css">
-    <link rel="stylesheet" href="./css/components/search.css">
 </head>
 <body>
     <div class="header_bar">
         <div class="header_bar__logobox">
             <a href="./index.html">
                 <p>MediCheck</p>
-                <p>Reminder</p>
             </a>
         </div>
         <div class="header_bar__nav">
@@ -37,15 +35,20 @@
                 <p>Stats</p>
             </a>
         </div>
+        <div class="header_bar__useraction">
+            <p>2025-10-02</p>
+            <a href="#"><i class="fa-solid fa-bell"></i></a>
+            <a>login</a>
+        </div>
     </div>
-
-    <script type="module" src="./js/main.js"></script>
     <div id="searchBar">
         <form id="searchForm">
             <input id="searchInput" type="text" placeholder="검색어를 입력하세요">
             <button id="closeSearch" type="button">닫기</button>
         </form>
     </div>
+
+    <script src="./js/main.js"></script>
     <script src="https://kit.fontawesome.com/4194a407b7.js" crossorigin="anonymous"></script>
 </body>
 </html>
