@@ -47,5 +47,13 @@ table {
 	border-spacing: 0;
 }
 a {
-  text-decoration-line: none;
+	text-decoration: none;
+	color: inherit;
+	background: none;
+	outline: none;
+	cursor: pointer;
+	border: none;
+	font: inherit;
+	padding: 0;
+	margin: 0;
 }

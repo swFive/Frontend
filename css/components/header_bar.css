@@ -1,18 +1,17 @@
 /* ===== 공통 ===== */
 .header_bar{
-    height: 150px;
+    height: 130px;
     width: 100%;
     background-color: #C6DEFD;
     display: flex;
 }
 
 .header_bar__logobox{
-    height: 150px;
+    height: 130px;
     width: 278px;
 
     display: flex;
     justify-content: center;
-    align-items: center;
 
     font-size: var(--logo-font-size);
     font-weight: var(--logo-font-weight);
@@ -32,79 +31,141 @@
     flex: 1 1 auto;
     /* 플렉스 아이템이 내용 때문에 부모를 밀어내지 않게 */
     min-width: 0;
-    height: 150px;
+    height: 130px;
 
     display: flex;
 }
 
 .header_bar__nav__box{
     width: 160px;
-    height: 150px;
-
+    height: 130px;
     font-size: var(--nav-font-size);
     font-weight: var(--nav-font-weight);
-
     display: flex;
     justify-content: center;
     align-items: center;
-
-    color: white;
-    text-shadow: 0px 1px black;
 }
+
+.header_bar__nav__box img,
+.header_bar__nav__box:nth-child(3),
+.header_bar__nav__box i{
+    display: none;
+}
+
 .header_bar__nav__box:nth-child(2){
     padding-left: 5%;
     padding-right: 5%;
 }
 
-.header_bar__nav__box,
-.header_bar__logobox {
-    /* 호버 인터랙션을 부드럽게 */
-    transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease;
-    cursor: pointer; /* 클릭 가능한 느낌 */
-}
 
-.header_bar__nav__box:hover,
-.header_bar__logobox:hover {
-    transform: translateY(8px); /* 살짝 눌리는 느낌 */
-    box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.2); /* 눌림 강조(위쪽 그림자) */
-    background-color: rgba(0, 0, 0, 0.273); /* 호버 시 대비 강화 */
-}
-
-/* ===== 반응형 ===== */
-/* 1 ~ 799px */
-@media screen and (max-width: 799px) {
+@media screen and (max-width: 639px) {
+    body{
+        height: 300vh;
+    }
     .header_bar{
-        height: 100px;
+        height: 80px;
+        position: fixed;
+        bottom: 0px;
+        left: 0;
+        right: 0;
+        z-index: 100;
+        background: linear-gradient(90deg, #C6DEFD 0%, #A7C7E7 100%);
+        backdrop-filter: blur(8px);
+        box-shadow: 0px -2px 16px 0px rgba(58, 120, 180, 0.18);
+        border-top-left-radius: 18px;
+        border-top-right-radius: 18px;
+        transform: translateY(0);
+        opacity: 1;
+        /* 올라오는 모션 */
+        animation: slideUp 0.5s cubic-bezier(0.4,0,0.2,1) forwards;
     }
     .header_bar__logobox{
-        height: 100px;
-        width: 100px; /* 모바일 로고 최소 폭 */
+        /* height: 100px;
+        width: 100px;
         
         font-size: var(--logo-font-size);
         font-weight: var(--logo-font-weight);
 
-        padding-left: 10px;
+        padding-left: 10px; */
+
+        display: none;
+        
+        padding-right: 30px;
+        
     }
     .header_bar__nav{
-        height: 100px;
-        /* 수평 스크롤은 nav 내부로 한정 */
+        height: 80px;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
+        display: flex;
+        justify-content: space-around;
+        padding: 0px 1%;
+        background: transparent;
+        box-shadow: none;
+    }
+    .header_bar__nav__box i{
+        display:block
+    }
+    
+    .header_bar__nav__box{
+        height: 80px;
+        width: 90px;
+        color: black;
+        cursor: pointer;
 
         display: flex;
-        justify-content: space-around; /* 작은 화면에서 항목 간 여백 유지 */
+        flex-direction: column;
 
-        padding: 0px 1%;
+        font-size: 12px;
+        font-weight: 500;
+
+        padding: 0px;
+        margin: 0px;
     }
-    .header_bar__nav__box{
-        height: 100px;
-        width: 90px;
-        font-size: var(--nav-font-size);
-        font-weight: var(--nav-font-weight);
+    .header_bar__nav__box img{
+        display: inline;
+        width: 30px;
+        
     }
+    
+    /* 검색버튼 */
+    .header_bar__nav__box:nth-child(3){
+        display: flex;
+        justify-content: center;
+        align-items: center;
+
+        padding: 0px;
+        margin: 0px;
+    }
+
+    @keyframes slideDown {
+        0% {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        100% {
+            transform: translateY(100%);
+            opacity: 0.2;
+        }
+    }
+    @keyframes slideUp {
+        0% {
+            transform: translateY(100%);
+            opacity: 0.2;
+        }
+        100% {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+    .header_bar.hide {
+        animation: slideDown 0.5s cubic-bezier(0.4,0,0.2,1) forwards;
+        pointer-events: none;
+        box-shadow: none;
+    }
+
     .header_bar__nav__box:nth-child(2){
-        padding-left: 5%;
-        padding-right: 5%; /* 2번째 항목 좌우 여백으로 시각적 균형 */
+        padding: 0px;
     }
 
     .header_bar__logobox p:last-child{
@@ -112,46 +173,45 @@
     }
 }
 
-/* 800 ~ 1279px */
-@media screen and (min-width: 800px) and (max-width: 1279px) {
+
+@media screen and (min-width: 640px) and (max-width: 1279px) {
     .header_bar{
-        height: 130px;
+        height: 120px;
     }
     .header_bar__logobox{
-        height: 130px;
-        width: 240px;
+        height: 120px;
+        width: 260px;
         font-size: var(--logo-font-size);
         font-weight: var(--logo-font-weight);
     }
+    .header_bar__nav__box:last-child{
+        padding-right: 5%;
+    }
+
     .header_bar__nav{
-        height: 130px;
+        height: 120px;
     }
     .header_bar__nav__box{
-        height: 130px;
-        width: 120px;
+        height: 120px;
+        width: 140px;
         font-size: var(--nav-font-size);
         font-weight: var(--nav-font-weight);
     }
 }
 
-/* 1280 ~ 1921px */
-@media screen and (min-width: 1280px) and (max-width: 1921px) {
-    .header_bar{
-        height: 140px;
+@media screen and (min-width: 1200px)
+{
+    .header_bar__nav__box,
+    .header_bar__logobox {
+        /* 호버 인터랙션을 부드럽게 */
+        transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease;
+        cursor: pointer; /* 클릭 가능한 느낌 */
     }
-    .header_bar__logobox{
-        height: 140px;
-        width: 260px;
-        font-size: var(--logo-font-size);
-        font-weight: var(--logo-font-weight);
-    }
-    .header_bar__nav{
-        height: 140px;
-    }
-    .header_bar__nav__box{
-        height: 140px;
-        width: 140px;
-        font-size: var(--nav-font-size);
-        font-weight: var(--nav-font-weight);
+
+    .header_bar__nav__box:hover,
+    .header_bar__logobox:hover {
+        transform: translateY(8px); /* 살짝 눌리는 느낌 */
+        box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.2); /* 눌림 강조(위쪽 그림자) */
+        background-color: rgba(0, 0, 0, 0.273); /* 호버 시 대비 강화 */
     }
 }
