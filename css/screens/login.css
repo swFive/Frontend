@@ -9,6 +9,7 @@ body{
     display: flex;
     height: 100%;
     
+    flex-direction: column;
     justify-content: center;
     align-items: center;
 }   
@@ -46,6 +47,17 @@ body{
     align-items: center;
 }
 
-#login_buttons__kakao__spanbox span{
+#login_buttons__kakao__spanbox a{
     margin-right: 10px;
+}
+
+#login_buttons__mk{
+    display: flex;
+    justify-content: end;
+    align-items: center;
+
+    width: 400px;
+    height: 30px;
+
+    opacity: 0.7;
 }

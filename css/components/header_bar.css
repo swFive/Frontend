@@ -1,6 +1,6 @@
 /* ===== 공통 ===== */
 .header_bar{
-    position: sticky;
+    /* position: sticky; */
     top: 0;
     height: 48px;
     width: 100%;
@@ -134,10 +134,10 @@
         border-top-right-radius: 18px;
         transform: translateY(0);
         opacity: 1;
-        /* 기본 상태: 애니메이션은 클래스(.show/.hide)로 제어 */
-        animation: none;
+        transition: transform 0.32s cubic-bezier(0.4,0,0.2,1), opacity 0.24s ease;
         padding: 8px 16px 12px;
         padding-bottom: calc(env(safe-area-inset-bottom, 0) + 12px);
+
     }
     .header_bar__logobox{
         display: none;
@@ -186,24 +186,9 @@
         margin: 0;
     }
 
-    /* 애니메이션 키프레임 (모바일 전용 - 클래스 기반 폴백) */
-    @keyframes slideDown {
-        from { transform: translateY(0); opacity: 1; }
-        to   { transform: translateY(100%); opacity: 0; }
-    }
-    @keyframes slideUp {
-        from { transform: translateY(100%); opacity: 0; }
-        to   { transform: translateY(0); opacity: 1; }
-    }
-
-    /* 클래스 기반 애니메이션: .show = 올라오기, .hide = 내려가기 */
-    .header_bar.show {
-        animation: slideUp 0.32s cubic-bezier(0.4,0,0.2,1) forwards;
-        pointer-events: auto;
-        box-shadow: 0 -2px 16px rgba(58,120,180,0.18);
-    }
-    .header_bar.hide {
-        animation: slideDown 0.32s cubic-bezier(0.4,0,0.2,1) forwards;
+    .header_bar--hidden {
+        transform: translateY(calc(100% + env(safe-area-inset-bottom, 0)));
+        opacity: 0;
         pointer-events: none;
         box-shadow: none;
     }
