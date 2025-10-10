@@ -1,0 +1,51 @@
+body{
+    height: 100vh;
+
+    display: flex;
+    flex-direction: column;
+}
+
+#login_buttons{
+    display: flex;
+    height: 100%;
+    
+    justify-content: center;
+    align-items: center;
+}   
+
+#login_buttons__kakao{
+    /* kakao_login_large_wide 1 */
+
+    background-color: #fae100;
+    
+    width: 400px;
+    height: 7%;
+
+    border:1px solid rgba(0, 0, 0, 0.2);
+
+    display: flex;
+    align-items: center;
+}
+
+#login_buttons__kakao__ibox{
+    height: 100%;
+    width: 10%;
+
+    display: flex;
+    justify-content: end;
+    align-items: center;
+}
+
+#login_buttons__kakao__spanbox{
+    width: 90%;
+    height: 100%;
+    /* background-color: black; */
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#login_buttons__kakao__spanbox span{
+    margin-right: 10px;
+}
