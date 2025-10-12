@@ -82,3 +82,61 @@ if (document.readyState === 'loading') {
 } else {
 	initMobileHeaderBar();
 }
+
+// 로그인 상태에 따른 헤더 표시(공통)
+const initHeaderLoginState = () => {
+	const userAction = document.querySelector('.header_bar__useraction');
+	if (!userAction) return;
+
+	const findLoginLink = () => {
+		// 우선 클래스가 있는 링크를 찾고, 없으면 텍스트가 'login'인 a를 찾음
+		let link = userAction.querySelector('.header_bar__useraction__logintext');
+		if (link) return link;
+		const anchors = Array.from(userAction.querySelectorAll('a'));
+		const found = anchors.find(a => (a.textContent || '').trim().toLowerCase() === 'login');
+		return found || null;
+	};
+
+	const loginLink = findLoginLink();
+	if (!loginLink) return;
+
+	const renderLoggedOut = () => {
+		loginLink.textContent = 'login';
+		loginLink.href = './login.html';
+		loginLink.onclick = null;
+	};
+
+	const renderLoggedIn = (user) => {
+		loginLink.textContent = user.name || 'me';
+		loginLink.href = '#';
+		loginLink.onclick = (e) => {
+			e.preventDefault();
+			try { localStorage.removeItem('mc_user'); } catch {}
+			renderLoggedOut();
+		};
+	};
+
+	try {
+		const raw = localStorage.getItem('mc_user');
+		if (raw) {
+			const user = JSON.parse(raw);
+			renderLoggedIn(user);
+			return;
+		}
+	} catch (err) {
+		console.error('localStorage read error', err);
+	}
+
+	renderLoggedOut();
+};
+
+if (document.readyState === 'loading') {
+	document.addEventListener('DOMContentLoaded', initHeaderLoginState);
+} else {
+	initHeaderLoginState();
+}
+
+// Expose update function for other scripts (e.g., login flow) to call after mutating storage
+if (typeof window !== 'undefined') {
+	window.updateHeaderLoginState = initHeaderLoginState;
+}
