@@ -11,5 +11,6 @@
 /* screens */
 @import "./screens/mainpage.css";
 @import "./screens/login.css";
+@import "./screens/medication.css";
 
 /* root-level styles (if any) */

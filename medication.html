@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Medication - MediCheck</title>
+  <link rel="stylesheet" href="./css/styles.css" />
+</head>
+<body>
+  <div class="header_bar">
+    <div class="header_bar__logobox">
+      <a href="./index.html"><p>MediCheck</p></a>
+    </div>
+    <div class="header_bar__nav">
+      <a class="header_bar__nav__box" href="./index.html">
+        <img src="asset/svg/house-solid-full.svg" alt="" />
+        <p>home</p>
+      </a>
+      <a class="header_bar__nav__box" href="./medication.html">
+        <img src="asset/svg/pills-solid-full.svg" alt="" />
+        <p>Medication</p>
+      </a>
+      <a class="header_bar__nav__box" href="#" id="searchBtn">
+        <i class="fa-solid fa-magnifying-glass fa-2xl"></i>
+      </a>
+      <a class="header_bar__nav__box" href="#">
+        <img src="asset/svg/clock-rotate-left-solid-full.svg" alt="" />
+        <p>History</p>
+      </a>
+      <a class="header_bar__nav__box" href="#">
+        <img src="asset/svg/signal-solid-full.svg" alt="" />
+        <p>Stats</p>
+      </a>
+    </div>
+    <div class="header_bar__useraction">
+      <p>2025-10-12</p>
+      <a href="#"><i class="fa-solid fa-bell"></i></a>
+      <a class="header_bar__useraction__logintext" href="./login.html">login</a>
+    </div>
+  </div>
+
+  <main class="medication-page">
+    <section class="medication-grid">
+      <div class="drug-card" data-name="drug_card_1">
+      <div class="color-tool-red" aria-hidden="true" data-name="color tool_red">
+        <div class="color-tool-red__lilight" data-name="lilight_red"></div>
+        <div class="color-tool-red__deep" data-name="deep_red"></div>
+      </div>
+
+        <div class="drug-info" data-name="drug_info">
+        <div class="drug-info__title"><p class="leading-normal">처방약 1</p></div>
+        <div class="drug-info__subtitle"><p class="leading-normal">필수 복용</p></div>
+        <div class="drug-info__list">
+          <div>
+            <p class="mb-0">한미 알마게이트 정 500mg</p>
+            <p class="mb-0">한미 파모티딘 정 20mg</p>
+            <p class="mb-0">스파로드 정</p>
+            <p>모사메드 정 5mg</p>
+          </div>
+        </div>
+        </div>
+
+        <div class="drug-rule-info" data-name="drug_rule_info">
+          <div class="drug-rule-info__line" style="top:40px"></div>
+          <div class="drug-rule-info__line" style="top:80.95px"></div>
+          <div class="drug-rule-info__line" style="top:120.95px"></div>
+          <div class="drug-rule-info__line" style="top:161.91px"></div>
+
+          <div class="drug-rule-info__row"><p>매일</p></div>
+          <div class="drug-rule-info__row"><p>09:00 / 13:00 / 18:00</p></div>
+          <div class="drug-rule-info__row"><p>다음: 오늘 18:00</p></div>
+          <div class="drug-rule-info__row"><p>4정</p></div>
+          <div class="drug-rule-info__edit"><p>수정하기</p></div>
+        </div>
+      </div>
+
+      <!-- duplicate sample cards to demonstrate rows/columns -->
+      <div class="drug-card" data-name="drug_card_2">
+        <div class="color-tool-red" aria-hidden="true">
+          <div class="color-tool-red__lilight"></div>
+          <div class="color-tool-red__deep"></div>
+        </div>
+        <div class="drug-info">
+          <div class="drug-info__title"><p class="leading-normal">처방약 2</p></div>
+          <div class="drug-info__subtitle"><p class="leading-normal">필수 복용</p></div>
+          <div class="drug-info__list"><div><p class="mb-0">예시 약품 A</p><p class="mb-0">예시 약품 B</p><p class="mb-0">예시 약품 C</p><p>예시 약품 D</p></div></div>
+        </div>
+        <div class="drug-rule-info">
+          <div class="drug-rule-info__line" style="top:40px"></div>
+          <div class="drug-rule-info__line" style="top:80.95px"></div>
+          <div class="drug-rule-info__line" style="top:120.95px"></div>
+          <div class="drug-rule-info__line" style="top:161.91px"></div>
+          <div class="drug-rule-info__row"><p>매일</p></div>
+          <div class="drug-rule-info__row"><p>08:00 / 20:00</p></div>
+          <div class="drug-rule-info__row"><p>다음: 오늘 20:00</p></div>
+          <div class="drug-rule-info__row"><p>1정</p></div>
+          <div class="drug-rule-info__edit"><p>수정하기</p></div>
+        </div>
+      </div>
+
+      <div class="drug-card" data-name="drug_card_3">
+        <div class="color-tool-red" aria-hidden="true">
+          <div class="color-tool-red__lilight"></div>
+          <div class="color-tool-red__deep"></div>
+        </div>
+        <div class="drug-info">
+          <div class="drug-info__title"><p class="leading-normal">처방약 3</p></div>
+          <div class="drug-info__subtitle"><p class="leading-normal">필수 복용</p></div>
+          <div class="drug-info__list"><div><p class="mb-0">예시 약품 1</p><p class="mb-0">예시 약품 2</p><p class="mb-0">예시 약품 3</p><p>예시 약품 4</p></div></div>
+        </div>
+        <div class="drug-rule-info">
+          <div class="drug-rule-info__line" style="top:40px"></div>
+          <div class="drug-rule-info__line" style="top:80.95px"></div>
+          <div class="drug-rule-info__line" style="top:120.95px"></div>
+          <div class="drug-rule-info__line" style="top:161.91px"></div>
+          <div class="drug-rule-info__row"><p>격일</p></div>
+          <div class="drug-rule-info__row"><p>09:00</p></div>
+          <div class="drug-rule-info__row"><p>다음: 내일 09:00</p></div>
+          <div class="drug-rule-info__row"><p>2정</p></div>
+          <div class="drug-rule-info__edit"><p>수정하기</p></div>
+        </div>
+      </div>
+
+      <div class="drug-card" data-name="drug_card_4">
+        <div class="color-tool-red" aria-hidden="true">
+          <div class="color-tool-red__lilight"></div>
+          <div class="color-tool-red__deep"></div>
+        </div>
+        <div class="drug-info">
+          <div class="drug-info__title"><p class="leading-normal">처방약 4</p></div>
+          <div class="drug-info__subtitle"><p class="leading-normal">선택 복용</p></div>
+          <div class="drug-info__list"><div><p class="mb-0">예시 약품 α</p><p class="mb-0">예시 약품 β</p><p class="mb-0">예시 약품 γ</p><p>예시 약품 δ</p></div></div>
+        </div>
+        <div class="drug-rule-info">
+          <div class="drug-rule-info__line" style="top:40px"></div>
+          <div class="drug-rule-info__line" style="top:80.95px"></div>
+          <div class="drug-rule-info__line" style="top:120.95px"></div>
+          <div class="drug-rule-info__line" style="top:161.91px"></div>
+          <div class="drug-rule-info__row"><p>주 3회</p></div>
+          <div class="drug-rule-info__row"><p>08:00</p></div>
+          <div class="drug-rule-info__row"><p>다음: 금 08:00</p></div>
+          <div class="drug-rule-info__row"><p>1정</p></div>
+          <div class="drug-rule-info__edit"><p>수정하기</p></div>
+        </div>
+      </div>
+
+      <div class="drug-card" data-name="drug_card_5">
+        <div class="color-tool-red" aria-hidden="true">
+          <div class="color-tool-red__lilight"></div>
+          <div class="color-tool-red__deep"></div>
+        </div>
+        <div class="drug-info">
+          <div class="drug-info__title"><p class="leading-normal">처방약 5</p></div>
+          <div class="drug-info__subtitle"><p class="leading-normal">필수 복용</p></div>
+          <div class="drug-info__list"><div><p class="mb-0">예시 약품 E</p><p class="mb-0">예시 약품 F</p><p class="mb-0">예시 약품 G</p><p>예시 약품 H</p></div></div>
+        </div>
+        <div class="drug-rule-info">
+          <div class="drug-rule-info__line" style="top:40px"></div>
+          <div class="drug-rule-info__line" style="top:80.95px"></div>
+          <div class="drug-rule-info__line" style="top:120.95px"></div>
+          <div class="drug-rule-info__line" style="top:161.91px"></div>
+          <div class="drug-rule-info__row"><p>매일</p></div>
+          <div class="drug-rule-info__row"><p>12:00</p></div>
+          <div class="drug-rule-info__row"><p>다음: 오늘 12:00</p></div>
+          <div class="drug-rule-info__row"><p>1정</p></div>
+          <div class="drug-rule-info__edit"><p>수정하기</p></div>
+        </div>
+      </div>
+
+      <div class="drug-card" data-name="drug_card_6">
+        <div class="color-tool-red" aria-hidden="true">
+          <div class="color-tool-red__lilight"></div>
+          <div class="color-tool-red__deep"></div>
+        </div>
+        <div class="drug-info">
+          <div class="drug-info__title"><p class="leading-normal">처방약 6</p></div>
+          <div class="drug-info__subtitle"><p class="leading-normal">필수 복용</p></div>
+          <div class="drug-info__list"><div><p class="mb-0">예시 약품 I</p><p class="mb-0">예시 약품 J</p><p class="mb-0">예시 약품 K</p><p>예시 약품 L</p></div></div>
+        </div>
+        <div class="drug-rule-info">
+          <div class="drug-rule-info__line" style="top:40px"></div>
+          <div class="drug-rule-info__line" style="top:80.95px"></div>
+          <div class="drug-rule-info__line" style="top:120.95px"></div>
+          <div class="drug-rule-info__line" style="top:161.91px"></div>
+          <div class="drug-rule-info__row"><p>주 1회</p></div>
+          <div class="drug-rule-info__row"><p>09:00</p></div>
+          <div class="drug-rule-info__row"><p>다음: 토 09:00</p></div>
+          <div class="drug-rule-info__row"><p>1정</p></div>
+          <div class="drug-rule-info__edit"><p>수정하기</p></div>
+        </div>
+      </div>
+
+      <!-- Add tile as the last item -->
+      <div class="add-card">
+        <a class="add-card__link" href="./add_medication.html" aria-label="추가하기">
+          <span class="add-card__icon">+</span>
+          <span class="add-card__text">추가하기</span>
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <script src="./js/components/toast.js"></script>
+  <script src="./js/components/header_bar.js"></script>
+  <script src="./js/screens/medication.js"></script>
+  <script src="https://kit.fontawesome.com/4194a407b7.js" crossorigin="anonymous"></script>
+</body>
+</html>
