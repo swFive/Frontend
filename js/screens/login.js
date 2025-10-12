@@ -52,6 +52,8 @@ document.addEventListener('DOMContentLoaded', () => {
       // 저장 후 이동
       const user = { provider: 'kakao', name: 'KakaoUser', loggedAt: Date.now() };
       try { localStorage.setItem('mc_user', JSON.stringify(user)); } catch (err) { console.error('localStorage set error', err); }
+      // 성공 토스트 플래그를 세션 스토리지에 저장 (리다이렉트 후 자동 표시)
+      try { sessionStorage.setItem('mc_toast', JSON.stringify({ type: 'success', message: '로그인되었어요.' })); } catch {}
       try { if (window.updateHeaderLoginState) window.updateHeaderLoginState(); } catch {}
       window.location.href = './index.html';
     };
@@ -59,6 +61,9 @@ document.addEventListener('DOMContentLoaded', () => {
     continueBtn.addEventListener('click', onContinue, { once: true });
   };
 
-  if (kakaoAnchor) kakaoAnchor.addEventListener('click', openKakaoPopup);
-  if (loginBox) loginBox.addEventListener('click', openKakaoPopup);
+  if (kakaoAnchor) {
+    kakaoAnchor.addEventListener('click', openKakaoPopup);
+  } else if (loginBox) {
+    loginBox.addEventListener('click', openKakaoPopup);
+  }
 });

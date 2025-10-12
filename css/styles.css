@@ -4,6 +4,7 @@
 /* components */
 @import "./components/header_bar.css";
 @import "./components/search.css";
+@import "./components/toast.css";
 
 /* other components: add imports here if you create more */
 
