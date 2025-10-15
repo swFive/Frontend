@@ -5,6 +5,7 @@
 @import "./components/header_bar.css";
 @import "./components/search.css";
 @import "./components/toast.css";
+@import "./components/listbox_list.css";
 
 /* other components: add imports here if you create more */
 
