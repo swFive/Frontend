@@ -98,12 +98,16 @@ function createCard(cardData, save = true) {
     const inRule = target.closest('.drug-rule-info__row');
     if (!inTitleOrList && !inRule) return;
 
-    const oldValue = target.innerText;
-    const input = document.createElement('input');
+  const oldValue = target.innerText;
+  const input = document.createElement('input');
     input.type = 'text';
     input.value = oldValue;
     input.className = 'inline-edit';
-    target.replaceWith(input);
+  // lock input width to the original element width to prevent jump
+  const rect = target.getBoundingClientRect();
+  input.style.width = rect.width ? rect.width + 'px' : '';
+  input.style.minWidth = '120px'; // small floor to avoid too small caret area
+  target.replaceWith(input);
     input.focus();
 
     const originalClass = target.className; // rule 항목은 클래스 유지

@@ -1,3 +1,6 @@
+/* Card width knob */
+:root { --card-width: 360px; }
+
 /* 클릭해서 수정할 수 있도록 포인터 표시 */
 .editable {
   cursor: pointer;
@@ -9,7 +12,10 @@
 }
 /* 인라인 입력창 스타일 */
 .inline-edit {
-  width: 90%;
+  width: auto;               /* don't stretch */
+  max-width: 100%;
+  display: inline-block;     /* allow margin auto centering in parent with text-align */
+  box-sizing: border-box;
   border: none;
   border-bottom: 1px solid #444;
   outline: none;
@@ -59,20 +65,22 @@ select.inline-select {
 /* Medication page/grid and card layout (restored) */
 .medication-page {
   padding: 24px;
-  max-width: 1440px;      /* widened overall page width */
-  margin: 0 auto;         /* center within page */
+  width: 100%;
+  max-width: 1200px;      /* slightly narrower container */
+  margin: 0 auto;
 }
 
 .medication-grid {
   display: grid;
-  grid-template-columns: repeat(1, minmax(300px, 1fr)); /* default wider card */
+  grid-template-columns: repeat(1, var(--card-width)); /* default: 1 column with fixed card width */
   gap: 16px;
   align-items: stretch;
+  justify-content: center; /* center columns when container wider than cards */
 }
 
 /* Drug card base sizing */
 .drug-card {
-  width: 100%;
+  width: var(--card-width);
   height: 200px;
   display: flex;
   align-items: center;
@@ -216,11 +224,14 @@ select.inline-select {
 /* Breakpoints: columns per row */
 @media (max-width: 599px) {
   .medication-page { padding: 12px; }
-  .medication-grid { grid-template-columns: repeat(1, minmax(280px, 1fr)); }
+  :root { --card-width: 320px; }
+  .medication-grid { grid-template-columns: repeat(1, var(--card-width)); }
 }
 @media (min-width: 600px) and (max-width: 899px) {
-  .medication-grid { grid-template-columns: repeat(2, minmax(320px, 1fr)); }
+  :root { --card-width: 350px; }
+  .medication-grid { grid-template-columns: repeat(2, var(--card-width)); }
 }
 @media (min-width: 900px) {
-  .medication-grid { grid-template-columns: repeat(3, minmax(360px, 1fr)); }
+  :root { --card-width: 375px; }
+  .medication-grid { grid-template-columns: repeat(3, var(--card-width)); }
 }
