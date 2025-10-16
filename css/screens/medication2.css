@@ -1,0 +1,58 @@
+/* 클릭해서 수정할 수 있도록 포인터 표시 */
+    .editable {
+      cursor: pointer;
+      border-bottom: 1px dashed transparent;
+      transition: border-color 0.2s;
+    }
+    .editable:hover {
+      border-color: #aaa;
+    }
+    /* 인라인 입력창 스타일 */
+    .inline-edit {
+      width: 90%;
+      border: none;
+      border-bottom: 1px solid #444;
+      outline: none;
+      background: #fff7e6;
+      font-size: inherit;
+      text-align: center;
+    }
+    select.inline-select {
+      width: 50%;
+      font-size: inherit;
+      text-align: center;
+    }
+    .drug-card {
+      position: relative; /*  X 버튼 위치 기준이 되게 추가 */
+      overflow: hidden;
+      border-radius: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    /*  X 버튼 스타일 */
+    .delete-btn {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 28px;
+      height: 28px;
+      background: rgba(255, 255, 255, 0.9);
+      border: none;
+      border-radius: 50%;
+      font-size: 18px;
+      font-weight: bold;
+      color: #444;
+      cursor: pointer;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s, color 0.2s;
+      z-index: 5; /* 카드 내부 요소보다 위로 */
+    }
+    
+    .delete-btn:hover {
+      background: #ff5c5c;
+      color: #fff;
+    }
+    
