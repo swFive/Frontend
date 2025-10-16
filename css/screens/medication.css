@@ -1,24 +1,82 @@
-/* Medication screen styles */
+/* 클릭해서 수정할 수 있도록 포인터 표시 */
+.editable {
+  cursor: pointer;
+  border-bottom: 1px dashed transparent;
+  transition: border-color 0.2s;
+}
+.editable:hover {
+  border-color: #aaa;
+}
+/* 인라인 입력창 스타일 */
+.inline-edit {
+  width: 90%;
+  border: none;
+  border-bottom: 1px solid #444;
+  outline: none;
+  background: #fff7e6;
+  font-size: inherit;
+  text-align: center;
+}
+select.inline-select {
+  width: 50%;
+  font-size: inherit;
+  text-align: center;
+}
+.drug-card {
+  position: relative; /*  X 버튼 위치 기준이 되게 추가 */
+  overflow: hidden;
+  border-radius: 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+/*  X 버튼 스타일 */
+.delete-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  background: rgba(255, 255, 255, 0.9);
+  border: none;
+  border-radius: 50%;
+  font-size: 18px;
+  font-weight: bold;
+  color: #444;
+  cursor: pointer;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, color 0.2s;
+  z-index: 5; /* 카드 내부 요소보다 위로 */
+}
+
+.delete-btn:hover {
+  background: #ff5c5c;
+  color: #fff;
+}
+
+/* Medication page/grid and card layout (restored) */
 .medication-page {
   padding: 24px;
+  max-width: 1440px;      /* widened overall page width */
+  margin: 0 auto;         /* center within page */
 }
 
-/* Grid container for multiple drug cards */
 .medication-grid {
   display: grid;
-  grid-template-columns: repeat(1, minmax(0, 1fr)); /* default: 1 col */
-  gap: 16px;                                         /* row-gap & col-gap */
+  grid-template-columns: repeat(1, minmax(300px, 1fr)); /* default wider card */
+  gap: 16px;
+  align-items: stretch;
 }
 
-/* Drug card container */
+/* Drug card base sizing */
 .drug-card {
-  position: relative;
   width: 100%;
   height: 200px;
   display: flex;
   align-items: center;
   gap: 1px;
-  overflow: clip;
 }
 
 /* Background color tool overlay */
@@ -42,7 +100,7 @@
   top: 0;
   bottom: 0;
   right: 0;
-  width: 260px;
+  width: clamp(140px, 40%, 260px);
   background: #f28282;
   border-bottom-left-radius: 10px;
   border-top-left-radius: 10px;
@@ -62,7 +120,7 @@
   align-items: flex-start;
   text-align: center;
   color: #4d4d4d;
-  line-height: 0; /* match original leading[0] intent */
+  line-height: 0;
 }
 .drug-info__title {
   display: flex;
@@ -72,7 +130,7 @@
   min-width: 1px;
   justify-content: center;
   align-items: center;
-  font-weight: 600; /* SemiBold */
+  font-weight: 600;
   font-size: 30.153px;
   letter-spacing: -0.6031px;
 }
@@ -84,7 +142,7 @@
   min-width: 1px;
   justify-content: center;
   align-items: center;
-  font-weight: 700; /* Bold */
+  font-weight: 700;
   font-size: 20px;
   letter-spacing: -0.4px;
 }
@@ -96,7 +154,7 @@
   min-width: 1px;
   justify-content: center;
   align-items: center;
-  font-weight: 700; /* Bold */
+  font-weight: 700;
   font-size: 11.307px;
   letter-spacing: -0.2261px;
   line-height: normal;
@@ -124,27 +182,13 @@
   min-width: 1px;
   justify-content: center;
   align-items: center;
-  line-height: 0; /* match leading[0] */
-  font-weight: 500; /* Medium */
+  line-height: 0;
+  font-weight: 500;
   font-size: 10.769px;
   letter-spacing: -0.2154px;
   color: #4d4d4d;
 }
 .drug-rule-info__row:first-of-type { color: #3e3d3d; }
-
-.drug-rule-info__edit {
-  display: flex;
-  flex: 1 1 0;
-  width: 100%;
-  justify-content: center;
-  align-items: center;
-  line-height: 0;
-  font-weight: 800; /* ExtraBold */
-  font-size: 10.769px;
-  letter-spacing: -0.2154px;
-  color: #1fe226;
-  cursor: pointer;
-}
 
 .drug-rule-info__line {
   position: absolute;
@@ -152,30 +196,6 @@
   width: 176.19px;
   height: 1px;
   background: rgba(0,0,0,0.2);
-}
-
-/* Helpers */
-.mb-0 { margin-bottom: 0; }
-
-/* Basic responsiveness: allow horizontal scroll on small screens rather than breaking layout */
-@media (max-width: 599px) {
-  .medication-page { padding: 12px; }
-  .medication-grid { grid-template-columns: repeat(1, minmax(0, 1fr)); }
-}
-
-/* 600–899px: still 1 row */
-@media (min-width: 600px) and (max-width: 899px) {
-  .medication-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-
-/* 900–1199px: 2 rows */
-@media (min-width: 900px) and (max-width: 1199px) {
-  .medication-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-}
-
-/* 1200px and up: 3 rows */
-@media (min-width: 1200px) {
-  .medication-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
 /* Add-card tile styling */
@@ -190,21 +210,17 @@
   justify-content: center;
   background: #fff;
 }
-.add-card__link {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-decoration: none;
-  color: #4d4d4d;
-  gap: 8px;
+.add-card__icon { font-size: 28px; line-height: 1; }
+.add-card__text { font-size: 14px; }
+
+/* Breakpoints: columns per row */
+@media (max-width: 599px) {
+  .medication-page { padding: 12px; }
+  .medication-grid { grid-template-columns: repeat(1, minmax(280px, 1fr)); }
 }
-.add-card__icon {
-  font-size: 28px;
-  line-height: 1;
+@media (min-width: 600px) and (max-width: 899px) {
+  .medication-grid { grid-template-columns: repeat(2, minmax(320px, 1fr)); }
 }
-.add-card__text {
-  font-size: 14px;
+@media (min-width: 900px) {
+  .medication-grid { grid-template-columns: repeat(3, minmax(360px, 1fr)); }
 }

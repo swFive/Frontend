@@ -1,3 +1,5 @@
+
+
 .main__listbox__list{
     border: 1px solid black;
 
@@ -7,6 +9,7 @@
     display: flex;
     /* justify-content: center; */
     align-items: center;
+
 }
 
 .main__listbox__list__name{

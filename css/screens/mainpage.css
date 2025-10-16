@@ -35,16 +35,16 @@ body{
 #main__listbox{
     width: 50%;
     height: 100%;
+    min-height: 0; /* Allow flex item to shrink below content size for overflow */
 
     display: flex;
     flex-direction: column;
     justify-content: start;
     align-items: center;
 
-
     margin-bottom: 30px;
 
-
+    overflow: auto;
 }
 
 #main__listbox__today{
