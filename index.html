@@ -48,9 +48,32 @@
         </form>
     </div>
 
+    <div id="main">
+        <div id="main__imagebox">
+            <img src="./asset/img/1.png" alt="">
+        </div>
+        <div id="main__listbox">
+            <div id="main__listbox__today">
+                <span>오늘 복용해야할 약물</span>
+                <button type="button" id="main__listbox__addBtn">추가</button>
+            </div>
+            <div id="main__listbox__items">
+                <div class="main__listbox__list">
+                    <span class="main__listbox__list__name" data-field="name">이름</span>
+                    <span class="main__listbox__list__time" data-field="time">12:12</span>
+                    <span class="main__listbox__list__score" data-field="score">1점</span>
+                    <div class="main__listbox__list__btnbox">
+                        <span class="main__listbox__list__btnbox__btn">미복용</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="./js/components/toast.js"></script>
     <script src="./js/components/header_bar.js"></script>
     <script src="./js/screens/login.js"></script>
+    <script src="./js/components/listbox.js"></script>
     <script src="https://kit.fontawesome.com/4194a407b7.js" crossorigin="anonymous"></script>
 </body>
 </html>
