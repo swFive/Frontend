@@ -29,6 +29,7 @@
   top: 0;
   width: 100%;
   height: 100%;
+  z-index: 0;
   overflow: clip;
 }
 .color-tool-red__lilight {
@@ -42,7 +43,7 @@
   top: 0;
   bottom: 0;
   right: 0;
-  width: 260px;
+  width: clamp(140px, 40%, 220px);
   background: #f28282;
   border-bottom-left-radius: 10px;
   border-top-left-radius: 10px;
@@ -55,8 +56,10 @@
   position: relative;
   z-index: 1;
   height: 200px;
+  width: clamp(140px, 40%, 220px);
   flex: 1 1 auto;
   display: flex;
+  min-width: 250px;
   flex-direction: column;
   justify-content: space-between;
   align-items: flex-start;
@@ -108,11 +111,13 @@
   z-index: 1;
   height: 200px;
   width: clamp(140px, 40%, 220px);
+  min-width: 360px;
   border-radius: 31.409px;
   display: flex;
+  padding: 0 40px;
   flex-direction: column;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   text-align: center;
   color: #4d4d4d;
 }
@@ -122,7 +127,7 @@
   width: 100%;
   min-height: 1px;
   min-width: 1px;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: center;
   line-height: 0; /* match leading[0] */
   font-weight: 500; /* Medium */
@@ -209,80 +214,81 @@
   font-size: 14px;
 }
 /* 클릭해서 수정할 수 있도록 포인터 표시 */
-.editable {
-  cursor: pointer;
-  border-bottom: 1px dashed transparent;
-  transition: border-color 0.2s;
-}
-.editable:hover {
-  border-color: #aaa;
-}
-/* 인라인 입력창 스타일 */
-.inline-edit {
-  width: 90%;
-  border: none;
-  border-bottom: 1px solid #444;
-  outline: none;
-  background: #fff7e6;
-  font-size: inherit;
-  text-align: center;
-}
-select.inline-select {
-  width: 50%;
-  font-size: inherit;
-  text-align: center;
-}
-.drug-card {
-  position: relative; /*  X 버튼 위치 기준이 되게 추가 */
-  overflow: hidden;
-  border-radius: 16px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-}
-/*  X 버튼 스타일 */
-.delete-btn {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 28px;
-  height: 28px;
-  background: rgba(255, 255, 255, 0.9);
-  border: none;
-  border-radius: 50%;
-  font-size: 18px;
-  font-weight: bold;
-  color: #444;
-  cursor: pointer;
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.2s, color 0.2s;
-  z-index: 5; /* 카드 내부 요소보다 위로 */
-}
+    .editable {
+      cursor: pointer;
+      border-bottom: 1px dashed transparent;
+      transition: border-color 0.2s;
+    }
+    .editable:hover {
+      border-color: #aaa;
+    }
+    /* 인라인 입력창 스타일 */
+    .inline-edit {
+      width: 90%;
+      border: none;
+      border-bottom: 1px solid #444;
+      outline: none;
+      background: #fff7e6;
+      font-size: inherit;
+      text-align: center;
+    }
+    select.inline-select {
+      width: 50%;
+      font-size: inherit;
+      text-align: center;
+    }
+    .drug-card {
+      position: relative; /*  X 버튼 위치 기준이 되게 추가 */
+      overflow: hidden;
+      border-radius: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
 
-.delete-btn:hover {
-  background: #ff5c5c;
-  color: #fff;
-}
-.modal-bg {
-  position: fixed;
-  top: 0; left: 0; width: 100%; height: 100%;
-  background: rgba(0,0,0,0.5);
-  display: flex; justify-content: center; align-items: center;
-  z-index: 1000;
-}
-.modal {
-  background: white;
-  padding: 20px;
-  border-radius: 12px;
-  width: 320px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.modal h3 { margin: 0 0 10px 0; text-align: center; }
-.modal label { font-size: 14px; display: flex; flex-direction: column; }
-.btn-row { display: flex; justify-content: space-between; margin-top: 10px; }
-.btn-row button {
-  border: none; border-radius: 6px; padding: 6px 10px; cursor: pointer;
-}
+    /*  X 버튼 스타일 */
+    .delete-btn {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 28px;
+      height: 28px;
+      background: rgba(255, 255, 255, 0.9);
+      border: none;
+      border-radius: 50%;
+      font-size: 18px;
+      font-weight: bold;
+      color: #444;
+      cursor: pointer;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s, color 0.2s;
+      z-index: 5; /* 카드 내부 요소보다 위로 */
+    }
+    
+    .delete-btn:hover {
+      background: #ff5c5c;
+      color: #fff;
+    }
+    .modal-bg {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.5);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 1000;
+    }
+    .modal {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      width: 320px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .modal h3 { margin: 0 0 10px 0; text-align: center; }
+    .modal label { font-size: 14px; display: flex; flex-direction: column; }
+    .btn-row { display: flex; justify-content: space-between; margin-top: 10px; }
+    .btn-row button {
+      border: none; border-radius: 6px; padding: 6px 10px; cursor: pointer;
+    }
