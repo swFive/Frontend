@@ -140,3 +140,29 @@ if (document.readyState === 'loading') {
 if (typeof window !== 'undefined') {
 	window.updateHeaderLoginState = initHeaderLoginState;
 }
+
+// Header date/time display
+const initHeaderDateTime = () => {
+	const dateElement = document.querySelector('.header_bar__date');
+	if (!dateElement) return;
+
+	const formatDateTime = (date) => {
+		const year = date.getFullYear();
+		const month = String(date.getMonth() + 1).padStart(2, '0');
+		const day = String(date.getDate()).padStart(2, '0');
+		return `${year}-${month}-${day}`;
+	};
+
+	const render = () => {
+		dateElement.textContent = formatDateTime(new Date());
+	};
+
+	render();
+	setInterval(render, 60 * 1000);
+};
+
+if (document.readyState === 'loading') {
+	document.addEventListener('DOMContentLoaded', initHeaderDateTime);
+} else {
+	initHeaderDateTime();
+}
