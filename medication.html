@@ -5,38 +5,33 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Medication - MediCheck</title>
   <link rel="stylesheet" href="./css/styles.css" />
-</head>
-<body>
-  <div class="header_bar">
+ </head>
+<body class="page-medication">
+  <header class="header_bar">
     <div class="header_bar__logobox">
-      <a href="./index.html"><p>MediCheck</p></a>
+      <a href="./index.html">MediCheck</a>
     </div>
-    <div class="header_bar__nav">
-      <a class="header_bar__nav__box" href="./index.html">
-        <img src="asset/svg/house-solid-full.svg" alt="" />
-        <p>home</p>
-      </a>
-      <a class="header_bar__nav__box" href="./medication.html">
-        <img src="asset/svg/pills-solid-full.svg" alt="" />
-        <p>Medication</p>
-      </a>
-      <a class="header_bar__nav__box" href="#" id="searchBtn">
-        <i class="fa-solid fa-magnifying-glass fa-2xl"></i>
-      </a>
-      <a class="header_bar__nav__box" href="#">
-        <img src="asset/svg/clock-rotate-left-solid-full.svg" alt="" />
-        <p>History</p>
-      </a>
-      <a class="header_bar__nav__box" href="#">
-        <img src="asset/svg/signal-solid-full.svg" alt="" />
-        <p>Stats</p>
-      </a>
-    </div>
+    <nav class="header_bar__nav" aria-label="주요 메뉴">
+      <a class="header_bar__nav__box" href="./index.html">Home</a>
+      <a class="header_bar__nav__box is-active" href="./medication.html">Medication management</a>
+      <a class="header_bar__nav__box" href="#">Weekly report</a>
+      <a class="header_bar__nav__box" href="#">Notice</a>
+    </nav>
     <div class="header_bar__useraction">
-      <p>2025-10-12</p>
-      <a href="#"><i class="fa-solid fa-bell"></i></a>
+      <p class="header_bar__date">2025-10-12</p>
+      <button class="header_bar__notif" type="button">
+        <span>Notification</span>
+        <span class="header_bar__notif-dot" aria-hidden="true"></span>
+      </button>
       <a class="header_bar__useraction__logintext" href="./login.html">login</a>
     </div>
+  </header>
+
+  <div id="searchBar">
+    <form id="searchForm">
+      <input id="searchInput" type="text" placeholder="검색어를 입력하세요" />
+      <button id="closeSearch" type="button">닫기</button>
+    </form>
   </div>
   
   <main class="medication-page">
@@ -45,8 +40,9 @@
     </section>
   </main>
 
+  <script src="./js/components/toast.js"></script>
+  <script src="./js/components/header_bar.js"></script>
   <script src="./js/screens/medication.js"></script>
-
-  
+  <script src="https://kit.fontawesome.com/4194a407b7.js" crossorigin="anonymous"></script>
 </body>
 </html>

@@ -1,3 +1,7 @@
+.page-medication{
+  min-height: 100vh;
+  background: var(--bg, #F6F8FB);
+}
 /* Medication screen styles */
 .medication-page {
   padding: 24px;
@@ -162,25 +166,61 @@
 /* Helpers */
 .mb-0 { margin-bottom: 0; }
 
-/* Basic responsiveness: allow horizontal scroll on small screens rather than breaking layout */
-@media (max-width: 599px) {
-  .medication-page { padding: 12px; }
-  .medication-grid { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+/* Mobile ≤768px */
+@media (max-width: 768px) {
+  .medication-page {
+    padding: 16px;
+  }
+  .medication-grid {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: 20px;
+  }
+  .drug-card{
+    flex-direction: column;
+    height: auto;
+    min-height: 240px;
+    padding: 16px 12px;
+    gap: 12px;
+  }
+  .color-tool-red__deep{
+    width: 60%;
+    border-radius: 60px;
+  }
+  .drug-info,
+  .drug-rule-info{
+    width: 100%;
+    min-width: auto;
+    height: auto;
+    align-items: center;
+    text-align: center;
+  }
+  .drug-info{
+    gap: 10px;
+  }
+  .drug-rule-info{
+    padding: 0 16px 16px;
+  }
 }
 
-/* 600–899px: still 1 row */
-@media (min-width: 600px) and (max-width: 899px) {
-  .medication-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+/* Tablet 769–1024px */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .medication-page {
+    padding: 32px;
+  }
+  .medication-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+  }
+  .drug-card{
+    height: 220px;
+  }
 }
 
-/* 900–1199px: 2 rows */
-@media (min-width: 900px) and (max-width: 1199px) {
-  .medication-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-}
-
-/* 1200px and up: 3 rows */
-@media (min-width: 1200px) {
-  .medication-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+/* Desktop ≥1025px */
+@media (min-width: 1025px) {
+  .medication-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 /* Add-card tile styling */

@@ -56,28 +56,4 @@
   to { opacity: 0; transform: translateY(12px); }
 }
 
-/* respect breakpoints if needed */
-@media (max-width: 599px) {
-  /* 모바일에서는 상단에서 나타나도록 위치 변경 */
-  .toast-container {
-    top: calc(16px + env(safe-area-inset-top));
-    bottom: auto;
-  }
 
-  /* 등장/퇴장 방향을 위쪽 기준으로 전환 */
-  .toast {
-    font-size: 13px;
-    padding: 11px 12px;
-    transform: translateY(-12px);
-    animation: toast-in 180ms ease-out forwards;
-  }
-
-  @keyframes toast-in {
-    from { opacity: 0; transform: translateY(-12px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-  @keyframes toast-out {
-    from { opacity: 1; transform: translateY(0); }
-    to { opacity: 0; transform: translateY(-12px); }
-  }
-}
