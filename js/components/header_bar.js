@@ -144,17 +144,22 @@ if (typeof window !== 'undefined') {
 // Header date/time display
 const initHeaderDateTime = () => {
 	const dateElement = document.querySelector('.header_bar__date');
-	if (!dateElement) return;
+	const heroDateElement = document.querySelector('.hero__panel-date');
+	if (!dateElement && !heroDateElement) return;
 
 	const formatDateTime = (date) => {
 		const year = date.getFullYear();
 		const month = String(date.getMonth() + 1).padStart(2, '0');
 		const day = String(date.getDate()).padStart(2, '0');
+		const hours = String(date.getHours()).padStart(2, '0');
+		const minutes = String(date.getMinutes()).padStart(2, '0');
 		return `${year}-${month}-${day}`;
 	};
 
 	const render = () => {
-		dateElement.textContent = formatDateTime(new Date());
+		const stamp = formatDateTime(new Date());
+		if (dateElement) dateElement.textContent = stamp;
+		if (heroDateElement) heroDateElement.textContent = stamp;
 	};
 
 	render();
