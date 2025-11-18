@@ -141,6 +141,119 @@ if (typeof window !== 'undefined') {
 	window.updateHeaderLoginState = initHeaderLoginState;
 }
 
+const ensureNavLoader = () => {
+	if (document.querySelector('.nav-loader')) return;
+	const loader = document.createElement('div');
+	loader.className = 'nav-loader';
+	loader.setAttribute('role', 'status');
+	loader.setAttribute('aria-live', 'polite');
+	loader.innerHTML = '<div class="nav-loader__spinner" aria-hidden="true"></div><p>Loading...</p>';
+	document.body.appendChild(loader);
+};
+
+const clearNavTransitionState = () => {
+	document.documentElement.classList.remove('is-nav-transitioning');
+};
+
+const initNavLoader = () => {
+	ensureNavLoader();
+	clearNavTransitionState();
+};
+
+if (document.readyState === 'loading') {
+	document.addEventListener('DOMContentLoaded', initNavLoader);
+} else {
+	initNavLoader();
+}
+
+window.addEventListener('pageshow', clearNavTransitionState);
+
+// Global nav highlight animation
+const initNavIndicator = () => {
+	const nav = document.querySelector('.header_bar__nav');
+	if (!nav) return;
+	const links = Array.from(nav.querySelectorAll('.header_bar__nav__box'));
+	if (!links.length) return;
+
+	let indicator;
+	let activeLink = null;
+	let resizeHandler = null;
+	let loadHandler = null;
+	let resizeObserver = null;
+
+	const getDefaultTarget = () => nav.querySelector('.header_bar__nav__box.is-active') || links[0];
+
+	const updateIndicator = (target, { instant = false } = {}) => {
+		if (!indicator || !target) return;
+		activeLink = target;
+		links.forEach((link) => link.classList.remove('is-highlighted'));
+		target.classList.add('is-highlighted');
+		if (instant) {
+			indicator.classList.add('is-teleport');
+		}
+		const navRect = nav.getBoundingClientRect();
+		const targetRect = target.getBoundingClientRect();
+		const offset = targetRect.left - navRect.left;
+		indicator.style.width = `${targetRect.width}px`;
+		indicator.style.transform = `translate3d(${offset}px, 0, 0)`;
+		indicator.classList.add('is-visible');
+		if (instant) {
+			requestAnimationFrame(() => indicator.classList.remove('is-teleport'));
+		}
+	};
+
+	const scheduleInstantUpdate = () => updateIndicator(activeLink || getDefaultTarget(), { instant: true });
+
+	const attachIndicator = () => {
+		if (indicator) return;
+		indicator = document.createElement('span');
+		indicator.className = 'header_bar__nav-indicator';
+		nav.appendChild(indicator);
+		updateIndicator(getDefaultTarget(), { instant: true });
+		resizeHandler = () => {
+			window.requestAnimationFrame(scheduleInstantUpdate);
+		};
+		window.addEventListener('resize', resizeHandler);
+		if (typeof ResizeObserver !== 'undefined') {
+			resizeObserver = new ResizeObserver(scheduleInstantUpdate);
+			resizeObserver.observe(nav);
+		}
+		loadHandler = scheduleInstantUpdate;
+		window.addEventListener('load', loadHandler, { once: false });
+		if (document.fonts && document.fonts.ready && typeof document.fonts.ready.then === 'function') {
+			document.fonts.ready.then(scheduleInstantUpdate).catch(() => {});
+		}
+		links.forEach((link) => {
+			link.addEventListener('focus', handleLinkEvent);
+			link.addEventListener('click', handleLinkClick);
+		});
+	};
+
+	function handleLinkEvent(event) {
+		updateIndicator(event.currentTarget);
+	}
+
+	function handleLinkClick(event) {
+		const link = event.currentTarget;
+		const href = link.getAttribute('href');
+		if (!href || href.startsWith('#')) return;
+		event.preventDefault();
+		updateIndicator(link);
+		document.documentElement.classList.add('is-nav-transitioning');
+		setTimeout(() => {
+			window.location.href = href;
+		}, 400);
+	}
+
+	attachIndicator();
+};
+
+if (document.readyState === 'loading') {
+	document.addEventListener('DOMContentLoaded', initNavIndicator);
+} else {
+	initNavIndicator();
+}
+
 // Header date/time display
 const initHeaderDateTime = () => {
 	const dateElement = document.querySelector('.header_bar__date');

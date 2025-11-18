@@ -15,3 +15,54 @@
 @import "./screens/medication.css";
 
 /* root-level styles (if any) */
+
+html{
+	background: var(--bg, #F6F8FB);
+}
+
+body{
+	transition: opacity 0.28s ease;
+	opacity: 1;
+}
+
+html.is-nav-transitioning body{
+	opacity: 0.25;
+	pointer-events: none;
+}
+
+.nav-loader{
+	position: fixed;
+	inset: 0;
+	background: rgba(8, 18, 42, 0.45);
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 16px;
+	z-index: 1500;
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 0.25s ease;
+	color: #fff;
+	font-family: inherit;
+	font-weight: 600;
+}
+
+.nav-loader__spinner{
+	width: 64px;
+	height: 64px;
+	border-radius: 50%;
+	border: 6px solid rgba(255, 255, 255, 0.3);
+	border-top-color: #ffffff;
+	animation: navLoaderSpin 0.9s linear infinite;
+}
+
+html.is-nav-transitioning .nav-loader{
+	opacity: 1;
+	pointer-events: auto;
+}
+
+@keyframes navLoaderSpin{
+	from{ transform: rotate(0deg); }
+	to{ transform: rotate(360deg); }
+}
