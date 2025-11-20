@@ -48,14 +48,60 @@ document.addEventListener('DOMContentLoaded', () => {
     const continueBtn = overlay.querySelector('#kakaoPopupContinue');
     if (!continueBtn) return;
 
-    const onContinue = () => {
-      // 저장 후 이동
-      const user = { provider: 'kakao', name: 'KakaoUser', loggedAt: Date.now() };
-      try { localStorage.setItem('mc_user', JSON.stringify(user)); } catch (err) { console.error('localStorage set error', err); }
-      // 성공 토스트 플래그를 세션 스토리지에 저장 (리다이렉트 후 자동 표시)
-      try { sessionStorage.setItem('mc_toast', JSON.stringify({ type: 'success', message: '로그인되었어요.' })); } catch {}
-      try { if (window.updateHeaderLoginState) window.updateHeaderLoginState(); } catch {}
-      window.location.href = './index.html';
+    const onContinue = async () => {
+      try {
+        // mock/login_user.json에서 사용자/시드 정보 불러오기
+        const res = await fetch('./mock/login_user.json', {
+          headers: {
+            Accept: 'application/json',
+          },
+        });
+
+        if (!res.ok) {
+          throw new Error('mock login_user.json load failed: ' + res.status);
+        }
+
+        const data = await res.json();
+
+        // seedData 구조에서 현재 로그인할 사용자 한 명 선택
+        let baseUser = null;
+        if (data.seedData && Array.isArray(data.seedData.AppUsers) && data.seedData.AppUsers.length) {
+          // 기본: 첫 번째 사용자. 필요하면 인덱스나 조건을 바꿔도 됨
+          baseUser = data.seedData.AppUsers[0];
+        }
+
+        const user = {
+          ...(baseUser || {}),
+          loggedAt: Date.now(),
+        };
+
+        // 로그인 정보 콘솔 확인용
+        console.log('[LOGIN SUCCESS] user_id:', user.user_id, 'name:', user.name);
+        console.log('[LOGIN SUCCESS] full user object:', user);
+
+        try {
+          localStorage.setItem('mc_user', JSON.stringify(user));
+        } catch (err) {
+          console.error('localStorage set error', err);
+        }
+
+        // 성공 토스트 플래그를 세션 스토리지에 저장 (리다이렉트 후 자동 표시)
+        try {
+          sessionStorage.setItem(
+            'mc_toast',
+            JSON.stringify({ type: 'success', message: '로그인되었어요.' })
+          );
+        } catch {}
+
+        try {
+          if (window.updateHeaderLoginState) window.updateHeaderLoginState();
+        } catch {}
+
+        window.location.href = './index.html';
+      } catch (error) {
+        console.error('[LOGIN ERROR]', error);
+        alert('로그인 정보를 불러오지 못했습니다. mock/login_user.json을 확인하세요.');
+      }
     };
 
     continueBtn.addEventListener('click', onContinue, { once: true });

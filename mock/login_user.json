@@ -1,0 +1,279 @@
+{
+  "seedData": {
+    "AppUsers": [
+      {
+        "user_id": 1,
+        "kakao_id": 1001,
+        "name": "민주"
+      },
+      {
+        "user_id": 2,
+        "kakao_id": 1002,
+        "name": "수진"
+      },
+      {
+        "user_id": 3,
+        "kakao_id": 1003,
+        "name": "보람"
+      }
+    ],
+    "UserMedications": [
+      {
+        "med_id": 1,
+        "user_id": 1,
+        "name": "타이레놀 500mg",
+        "category": "해열진통제",
+        "is_public": true,
+        "initial_quantity": 30,
+        "current_quantity": 30,
+        "dose_unit_quantity": 1,
+        "refill_threshold": 5,
+        "last_recalculated_at": "NOW()"
+      },
+      {
+        "med_id": 2,
+        "user_id": 1,
+        "name": "Vitamin C 500mg",
+        "category": "SUPPLEMENT",
+        "is_public": true,
+        "initial_quantity": 60,
+        "current_quantity": 60,
+        "dose_unit_quantity": 1,
+        "refill_threshold": 10,
+        "last_recalculated_at": "NOW()"
+      },
+      {
+        "med_id": 3,
+        "user_id": 2,
+        "name": "알레그라정",
+        "category": "항히스타민제",
+        "is_public": true,
+        "initial_quantity": 20,
+        "current_quantity": 20,
+        "dose_unit_quantity": 1,
+        "refill_threshold": 5,
+        "last_recalculated_at": "NOW()"
+      },
+      {
+        "med_id": 4,
+        "user_id": 3,
+        "name": "오메가3 캡슐",
+        "category": "SUPPLEMENT",
+        "is_public": true,
+        "initial_quantity": 90,
+        "current_quantity": 90,
+        "dose_unit_quantity": 1,
+        "refill_threshold": 10,
+        "last_recalculated_at": "NOW()"
+      }
+    ],
+    "IntakeSchedules": [
+      {
+        "sched_id": 1,
+        "medication_id": 1,
+        "user_id": 1,
+        "intake_time": "08:00:00",
+        "frequency": "DAILY",
+        "start_date": "2025-11-01",
+        "end_date": null,
+        "lead_minutes": 10,
+        "is_repeat": true,
+        "re_notify_enabled": true,
+        "re_notify_interval_min": 5,
+        "is_active": true
+      },
+      {
+        "sched_id": 2,
+        "medication_id": 1,
+        "user_id": 1,
+        "intake_time": "20:00:00",
+        "frequency": "DAILY",
+        "start_date": "2025-11-01",
+        "end_date": null,
+        "lead_minutes": 10,
+        "is_repeat": true,
+        "re_notify_enabled": true,
+        "re_notify_interval_min": 5,
+        "is_active": true
+      },
+      {
+        "sched_id": 3,
+        "medication_id": 2,
+        "user_id": 1,
+        "intake_time": "09:00:00",
+        "frequency": "MON_WED_FRI",
+        "start_date": "2025-11-01",
+        "end_date": null,
+        "lead_minutes": 15,
+        "is_repeat": true,
+        "re_notify_enabled": true,
+        "re_notify_interval_min": 10,
+        "is_active": true
+      },
+      {
+        "sched_id": 4,
+        "medication_id": 3,
+        "user_id": 2,
+        "intake_time": "07:30:00",
+        "frequency": "DAILY",
+        "start_date": "2025-11-01",
+        "end_date": null,
+        "lead_minutes": 5,
+        "is_repeat": true,
+        "re_notify_enabled": false,
+        "re_notify_interval_min": 0,
+        "is_active": true
+      },
+      {
+        "sched_id": 5,
+        "medication_id": 4,
+        "user_id": 3,
+        "intake_time": "08:00:00",
+        "frequency": "DAILY",
+        "start_date": "2025-11-01",
+        "end_date": null,
+        "lead_minutes": 10,
+        "is_repeat": true,
+        "re_notify_enabled": true,
+        "re_notify_interval_min": 5,
+        "is_active": true
+      }
+    ],
+    "MedicationIntakeLogs": [
+      {
+        "schedule_id": 1,
+        "user_id": 1,
+        "record_time": "2025-11-05 08:05:00",
+        "intake_status": "TAKEN",
+        "late_minutes": 5
+      },
+      {
+        "schedule_id": 1,
+        "user_id": 1,
+        "record_time": "2025-11-04 08:00:00",
+        "intake_status": "TAKEN",
+        "late_minutes": 0
+      },
+      {
+        "schedule_id": 2,
+        "user_id": 1,
+        "record_time": "2025-11-04 20:30:00",
+        "intake_status": "LATE",
+        "late_minutes": 30
+      },
+      {
+        "schedule_id": 3,
+        "user_id": 1,
+        "record_time": "2025-11-03 09:00:00",
+        "intake_status": "SKIPPED",
+        "late_minutes": null
+      },
+      {
+        "schedule_id": 4,
+        "user_id": 2,
+        "record_time": "2025-11-05 07:35:00",
+        "intake_status": "TAKEN",
+        "late_minutes": 5
+      },
+      {
+        "schedule_id": 5,
+        "user_id": 3,
+        "record_time": "2025-11-05 08:02:00",
+        "intake_status": "TAKEN",
+        "late_minutes": 2
+      }
+    ],
+    "UserNotificationSettings": [
+      {
+        "user_id": 1,
+        "notify_time_offset": 10,
+        "is_repeat": true,
+        "re_notify_interval": 5
+      },
+      {
+        "user_id": 2,
+        "notify_time_offset": 5,
+        "is_repeat": true,
+        "re_notify_interval": 10
+      },
+      {
+        "user_id": 3,
+        "notify_time_offset": 0,
+        "is_repeat": false,
+        "re_notify_interval": 0
+      }
+    ],
+    "FcmDeviceTokens": [
+      {
+        "user_id": 1,
+        "fcm_token": "fcm_token_user1_123",
+        "is_active": true,
+        "created_at": "NOW()"
+      },
+      {
+        "user_id": 2,
+        "fcm_token": "fcm_token_user2_abc",
+        "is_active": true,
+        "created_at": "NOW()"
+      },
+      {
+        "user_id": 3,
+        "fcm_token": "fcm_token_user3_xyz",
+        "is_active": true,
+        "created_at": "NOW()"
+      }
+    ],
+    "NotificationSendLogs": [
+      {
+        "user_id": 1,
+        "token_id": 1,
+        "title": "약 복용 알림",
+        "body": "타이레놀 복용 시간입니다!",
+        "data_json": "{\"medication\":\"타이레놀 500mg\",\"time\":\"08:00\"}",
+        "status": "SUCCESS",
+        "error_code": null,
+        "error_message": null
+      },
+      {
+        "user_id": 1,
+        "token_id": 1,
+        "title": "재알림",
+        "body": "아직 타이레놀을 복용하지 않으셨습니다.",
+        "data_json": "{\"schedule_id\":1}",
+        "status": "SUCCESS",
+        "error_code": null,
+        "error_message": null
+      },
+      {
+        "user_id": 2,
+        "token_id": 2,
+        "title": "약 복용 알림",
+        "body": "알레그라 복용 시간입니다!",
+        "data_json": "{\"medication\":\"알레그라정\",\"time\":\"07:30\"}",
+        "status": "FAILURE",
+        "error_code": "DEVICE_UNAVAILABLE",
+        "error_message": "사용자 기기 응답 없음"
+      }
+    ],
+    "IntakeJournals": [
+      {
+        "user_id": 1,
+        "journal_time": "2025-11-05 08:10:00",
+        "condition_emoji": "🙂",
+        "log_memo": "타이레놀 복용 후 두통이 조금 나아짐"
+      },
+      {
+        "user_id": 2,
+        "journal_time": "2025-11-05 07:40:00",
+        "condition_emoji": "😐",
+        "log_memo": "알레르기 증상은 보통 수준"
+      },
+      {
+        "user_id": 3,
+        "journal_time": "2025-11-05 08:15:00",
+        "condition_emoji": "😴",
+        "log_memo": "수면 부족으로 피곤한 상태"
+      }
+    ]
+  }
+}
