@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>복용 상태 & 컨디션 기록 데모</title>
+  <link rel="stylesheet" href="./vars.css" />
+  <link rel="stylesheet" href="./style.css" />
+  <script defer src="./script.js"></script>
+</head>
+
+<body>
+  <main class="container">
+    <h1 class="container__title">개인 테스트</h1>
+    
+    
+    <section class="card" aria-labelledby="pillaction-heading">
+      <div class="card__header">
+        <h2 id="pillaction-heading" class="card__title">상태 변화 피드백 UI</h2>
+        <p class="card__desc">복용 완료 시 버튼이 체크되고 비활성화. (+되돌리기로 취소)</p>
+      </div>
+      <div class="pill">
+        <button id="takeBtn" class="pill__take-btn" type="button" aria-pressed="false" aria-describedby="pillFeedback">
+          <span class="pill__take-label">복용하기</span>
+        </button>
+        <button id="skipBtn" class="pill__skip-btn" type="button"><span class="pill__skip-label">미복용</span></button>
+      </div>
+      <p id="pillFeedback" class="pill__feedback" role="status" aria-live="polite"></p>
+      <div class="pill__undo-wrap" hidden><button id="undoBtn" class="pill__undo-btn" type="button">되돌리기</button></div>
+    </section>
+
+
+    <section class="card" aria-labelledby="time-heading">
+      <div class="card__header">
+        <h2 id="time-heading" class="card__title">섭취 시간 입력 UI</h2>
+        <p class="card__desc">실제 약을 먹은 시간을 사용자가 직접 입력할 수 있는 시간 선택 위젯</p>
+      </div>
+
+      <div class="time">
+        <label for="takeTime" class="sr-only">섭취 시간</label>
+        <input id="takeTime" class="time__input" type="time" step="60" />
+        <div class="time__quick">
+          <button class="time__quick-btn" type="button" data-shift="now">지금</button>
+          <button class="time__quick-btn" type="button" data-shift="-10">-10분</button>
+          <button class="time__quick-btn" type="button" data-shift="+10">+10분</button>
+          <button id="openTimeWheel" class="time__toggle-btn" type="button">시간 선택</button>
+        </div>
+      </div>
+      <p id="timeFeedback" class="time__feedback" role="status" aria-live="polite"></p>
+    </section>
+
+
+    <section class="card" aria-labelledby="mood-heading">
+      <div class="card__header">
+        <h2 id="mood-heading" class="card__title">컨디션 이모지 선택 UI</h2>
+        <p class="card__desc">좋음/보통/나쁨 등 컨디션을 나타내는 이모지 선택 기능</p>
+      </div>
+
+      <fieldset class="mood" id="moodFieldset">
+        <legend class="sr-only">컨디션 선택</legend>
+        <input type="radio" name="mood" id="mood-good" value="good">
+        <label class="mood__chip" for="mood-good" data-label="좋음" aria-label="좋음">
+          <span class="mood__svg" aria-hidden="true"><img src="./image 1.svg" alt="" /></span>
+          <span class="mood__text">좋음</span>
+        </label>
+        <input type="radio" name="mood" id="mood-ok" value="ok">
+        <label class="mood__chip" for="mood-ok" data-label="보통" aria-label="보통">
+          <span class="mood__svg" aria-hidden="true"><img src="./image 2.svg" alt="" /></span>
+          <span class="mood__text">보통</span>
+        </label>
+        <input type="radio" name="mood" id="mood-bad" value="bad">
+        <label class="mood__chip" for="mood-bad" data-label="나쁨" aria-label="나쁨">
+          <span class="mood__svg" aria-hidden="true"><img src="./image 3.svg" alt="" /></span>
+          <span class="mood__text">나쁨</span>
+        </label>
+      </fieldset>
+
+      <p id="moodFeedback" class="mood__feedback" role="status" aria-live="polite"></p>
+    </section>
+
+
+    <section class="card" aria-labelledby="note-heading">
+      <div class="card__header">
+        <h2 id="note-heading" class="card__title">증상/메모 입력 UI</h2>
+        <p class="card__desc">복용 후 느낀 점을 텍스트로 입력할 수 있는 입력 필드 (+해시태그)</p>
+      </div>
+      <div class="note">
+        <div class="note__quick-tags" role="list" aria-label="증상 빠른 선택">
+          <button class="note__tag-btn" type="button" data-tag="두통"># 두통</button>
+          <button class="note__tag-btn" type="button" data-tag="메스꺼움"># 메스꺼움</button>
+          <button class="note__tag-btn" type="button" data-tag="속쓰림"># 속쓰림</button>
+          <button class="note__tag-btn" type="button" data-tag="어지러움"># 어지러움</button>
+          <button class="note__tag-btn" type="button" data-tag="졸림"># 졸림</button>
+        </div>
+
+        <label for="note" class="sr-only">증상/메모 입력</label>
+        <textarea id="note" class="note__input" placeholder="예: 빈속에 먹어서 조금 메스꺼웠어요." rows="4" maxlength="300"></textarea>
+        <div class="note__meta"><span id="charCount" class="note__char-count">0 / 300</span></div>
+      </div>
+    </section>
+
+
+    <!-- 알림 설정 -->
+    <section class="card" aria-labelledby="notif-heading">
+      <div class="card__header">
+        <h2 id="notif-heading" class="card__title">알림 설정 화면 UI</h2>
+        <p class="card__desc">앱 전체 알림을 켜고 끄거나, 재알림 간격 등을 설정</p>
+      </div>
+      <div class="setting">
+        <div class="setting__row">
+          <div class="setting__text">
+            <div class="setting__title">앱 알림</div>
+            <div class="setting__desc">전체 알림을 켜거나 끌 수 있어요.</div>
+          </div>
+          <label class="setting__switch"><input id="notifMaster" type="checkbox" checked><span class="setting__slider"></span></label>
+        </div>
+
+        <div class="setting__row">
+          <div class="setting__text">
+            <div class="setting__title">재알림 간격</div>
+            <div class="setting__desc">알림 확인 전까지 일정 간격으로 다시 알려드려요.</div>
+          </div>
+          <div class="setting__segmented" role="radiogroup" aria-label="재알림 간격">
+            <input type="radio" name="snooze" id="s5" value="5" checked><label for="s5">5분</label>
+            <input type="radio" name="snooze" id="s10" value="10"><label for="s10">10분</label>
+            <input type="radio" name="snooze" id="s15" value="15"><label for="s15">15분</label>
+            <input type="radio" name="snooze" id="s30" value="30"><label for="s30">30분</label>
+          </div>
+        </div>
+        <div class="setting__actions"><button id="notifSave" class="setting__save-btn" type="button">알림 설정 저장</button></div>
+        <p id="notifFeedback" class="setting__feedback" role="status" aria-live="polite"></p>
+      </div>
+    </section>
+  </main>
+
+
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden><span class="toast__icon" aria-hidden="true"></span><span class="toast__text">복용이 기록되었습니다.</span></div>
+  
+  
+  <!-- 시간 선택 모달 -->
+  <div id="timeModal" class="time-modal" role="dialog" aria-modal="true" aria-labelledby="timeModalTitle" hidden>
+    <div class="time-modal__sheet">
+      <div class="time-modal__header">
+        <h3 id="timeModalTitle">시간 선택</h3>
+        <button id="timeClose" class="time-modal__close-btn" aria-label="닫기">✕</button>
+      </div>
+      <div class="time-modal__wheel" aria-label="시간 선택 스크롤">
+        <div class="time-modal__wheel-col" id="hourCol" role="listbox" aria-label="시"></div>
+        <div class="time-modal__wheel-sep">:</div>
+        <div class="time-modal__wheel-col" id="minCol" role="listbox" aria-label="분"></div>
+        <div class="time-modal__wheel-highlight" aria-hidden="true"></div>
+      </div>
+      <div class="time-modal__actions"><button id="timeCancel" class="time-modal__ghost-btn" type="button">취소</button><button id="timeApply" class="time-modal__primary-btn" type="button">설정</button></div>
+    </div>
+  </div>
+</body>
+</html>
