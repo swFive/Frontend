@@ -2,6 +2,76 @@ document.addEventListener('DOMContentLoaded', () => {
   // 카카오 로그인 버튼(테스트용) 클릭 시 로컬에 로그인 플래그를 저장하고 인덱스로 이동
   const kakaoAnchor = document.querySelector('#login_buttons__kakao__spanbox a');
   const loginBox = document.querySelector('#login_buttons__kakao');
+// 카카오 로그인 - 사용자 정보 조회 (/my-info)
+
+// 본인 스프링 서버 주소로 바꾸면 됩니다.
+// 예: 로컬에서 돌릴 때는 http://localhost:8080
+const API_BASE_URL = "http://localhost:8080";
+
+// 로그 출력 도우미 함수
+function appendLoginLog(message) {
+  const logEl = document.getElementById("log");
+  if (!logEl) return;
+  const time = new Date().toLocaleTimeString();
+  logEl.textContent += `[${time}] ${message}\n`;
+}
+
+// 공통 fetch 래퍼: JSON 요청/응답 처리
+async function callLoginApi(path, options = {}) {
+  try {
+    const response = await fetch(API_BASE_URL + path, {
+      headers: {
+        "Content-Type": "application/json",
+        ...(options.headers || {})
+      },
+      ...options
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      appendLoginLog(`오류: ${response.status} ${response.statusText} - ${text}`);
+      return;
+    }
+
+    const data = await response.json().catch(() => null);
+    appendLoginLog(`성공: ${JSON.stringify(data, null, 2)}`);
+    return data;
+  } catch (error) {
+    appendLoginLog(`예외 발생: ${error}`);
+  }
+}
+
+// GET /my-info 호출 (현재 로그인한 사용자 정보 조회)
+async function callMyInfo() {
+  // 액세스 토큰 입력 필드에서 토큰 읽기 (선택)
+  const tokenInput = document.getElementById("accessToken");
+  const accessToken = tokenInput ? tokenInput.value.trim() : "";
+
+  const headers = {};
+
+  // 명세: Authorization: Bearer {access_token}
+  if (accessToken) {
+    headers["Authorization"] = `Bearer ${accessToken}`;
+  }
+
+  appendLoginLog(
+    `GET /my-info 호출 (Authorization 헤더: ${accessToken ? "Bearer {token}" : "없음"})`
+  );
+
+  await callLoginApi("/my-info", {
+    method: "GET",
+    headers
+  });
+}
+
+// 이벤트 리스너 등록
+window.addEventListener("DOMContentLoaded", () => {
+  const btnMyInfo = document.getElementById("btnMyInfo");
+
+  if (btnMyInfo) {
+    btnMyInfo.addEventListener("click", callMyInfo);
+  }
+});
 
   const ensureKakaoPopup = () => {
     let overlay = document.getElementById('kakaoLoginOverlay');
