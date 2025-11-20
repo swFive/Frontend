@@ -27,25 +27,15 @@ function saveCards() {
     stock: parseInt(card.querySelector(".stock").innerText.replace("정", "").trim(), 10),
     doseCount: card.dataset.doseCount || "1",
     startDate: card.dataset.startDate || "",
-    endDate: card.dataset.endDate || "",
-    dailyTimes: parseInt(card.dataset.dailyTimes) || 1, 
-    takenCountToday: parseInt(card.dataset.takenCountToday) || 0,
-    lastTakenDate: card.dataset.lastTakenDate || ""
+    endDate: card.dataset.endDate || ""
   }));
   localStorage.setItem("medicationCards", JSON.stringify(allCards));
-}
-
-function getTodayDateString() {
-    return new Date().toISOString().split('T')[0];
 }
 
 // ✅ 카드 생성
 function createCard(cardData, save = true) {
   const newCard = document.createElement("div");
   newCard.classList.add("drug-card");
-
-  // 데이터 로드 시 isTakenToday를 기본값(false)과 함께 초기화
-  const isTakenToday = cardData.isTakenToday || false;
 
   // 사용자 정의 카테고리면 보라색 기본값
   const color = typeColors[cardData.subtitle] || { light: "#e6d6ff", deep: "#a86af2" };
@@ -54,34 +44,10 @@ function createCard(cardData, save = true) {
   newCard.dataset.doseCount = cardData.doseCount || 1;
   newCard.dataset.startDate = cardData.startDate || "";
   newCard.dataset.endDate = cardData.endDate || "";
-  newCard.dataset.isTakenToday = isTakenToday;
 
   const timeHTML = Array.isArray(cardData.time)
     ? cardData.time.map(t => `<p class="time-item">${t}</p>`).join("")
     : `<p class="time-item">${cardData.time}</p>`;
-
-  const dailyTimes = Array.isArray(cardData.time) ? cardData.time.length : 1;
-  newCard.dataset.dailyTimes = dailyTimes;
-  newCard.dataset.takenCountToday = cardData.takenCountToday || 0;
-  newCard.dataset.lastTakenDate = cardData.lastTakenDate || "";
-
-  const todayString = getTodayDateString();
-    let initialTakenCount = cardData.takenCountToday || 0;
-    
-    // ⭐ 오늘 날짜와 마지막 복용 날짜가 다르면 복용 횟수를 0으로 리셋
-    if (newCard.dataset.lastTakenDate !== todayString) {
-        initialTakenCount = 0;
-    }
-    
-    newCard.dataset.takenCountToday = initialTakenCount;
-    let takenCount = initialTakenCount;
-    const totalTimes = parseInt(newCard.dataset.dailyTimes);
-    
-    // ... (HTML 생성 로직) ...
-    // 복용 버튼 텍스트를 현재 상태에 맞게 설정
-    const takeBtnText = takenCount === totalTimes 
-        ? "✅ 오늘 복용 완료" 
-        : `💊 복용 (${takenCount}/${totalTimes} 완료)`;
 
   newCard.innerHTML = `
     <div class="color-tool-red">
@@ -110,110 +76,31 @@ function createCard(cardData, save = true) {
       <div class="drug-rule-info__row"><p class="rule">${cardData.rule}</p></div>
       <div class="drug-rule-info__row time">${timeHTML}</div>
       <div class="drug-rule-info__row"><p class="next">${cardData.next}</p></div>
-      <div class="drug-rule-info__row"><p class="dose">${cardData.dose}</p>정</div>
+      <div class="drug-rule-info__row"><p class="dose">${cardData.dose}</p></div>
       <div class="drug-rule-info__row stock-row">재고: <span class="stock">${cardData.stock || 0}</span>정</div>
       <div class="drug-rule-info__row period">기간: ${cardData.startDate || "-"} ~ ${cardData.endDate || "-"}</div>
       <button class="take-btn">💊 복용</button>
     </div>
   `;
 
-  // 약 이름 수정 가능
-makeEditable(
-  newCard.querySelector(".drug-info__title p"),
-  (val) => {}
-);
-
-// 메모 수정 가능
-newCard.querySelectorAll(".drug-info__list p").forEach(p => {
-  makeEditable(p, () => {});
-});
-
-// 복용 규칙 수정
-makeEditable(
-  newCard.querySelector(".rule"),
-  (val) => {}
-);
-
-// 복용 시간 각각 수정
-newCard.querySelectorAll(".time-item").forEach(timeEl => {
-  makeEditable(timeEl, () => {});
-});
-
-// 복용량(정) 수정 — 숫자 모드
-makeEditable(
-  newCard.querySelector(".dose"),
-  (val) => {
-    newCard.dataset.doseCount = parseInt(val);
-  },
-  true
-);
-
-// 재고 수정 — 숫자 모드
-makeEditable(
-  newCard.querySelector(".stock"),
-  (val) => {
-    newCard.dataset.stock = parseInt(val);
-  },
-  true
-);
-
   grid.insertBefore(newCard, addBtn);
 
   // ✅ 복용 버튼 로직
   const takeBtn = newCard.querySelector(".take-btn");
   takeBtn.addEventListener("click", () => {
-    
     let stock = parseInt(newCard.dataset.stock);
     const dose = parseInt(newCard.dataset.doseCount);
-    let takenCount = parseInt(newCard.dataset.takenCountToday); 
-    const totalTimes = parseInt(newCard.dataset.dailyTimes);     
-    
-    const drugName = newCard.querySelector(".drug-info__title p").innerText; // 약 이름 가져오기
 
-    // 1. 복용 횟수 체크 (선택 사항)
-    if (takenCount >= totalTimes) {
-        alert("오늘은 이미 모든 복용을 완료했습니다.");
-        return;
-    }
-
-    // 2. ⭐ 복용 확인 대화 상자 (Confirm Dialog) 추가
-    const confirmation = confirm(`[${drugName}] ${dose}정을 복용하시겠습니까? 복용을 완료하면 재고가 차감됩니다.`);
-    
-    if (confirmation) {
-        // '확인'을 눌렀을 때만 복용 처리 진행
-
-        // 3. 재고 체크
-        if (stock < dose) {
-            alert("⚠️ 재고가 부족합니다! 재고를 확인해 주세요.");
-            return;
-        }
-
-        // 4. 복용 처리 및 상태 업데이트
-        stock -= dose;
-        takenCount += 1; // 복용 횟수 1 증가
-        newCard.dataset.lastTakenDate = getTodayDateString();
-        // 데이터 속성 및 UI 업데이트
-        newCard.dataset.stock = stock;
-        newCard.querySelector(".stock").innerText = stock;
-        newCard.dataset.takenCountToday = takenCount;
-        
-        // 버튼 텍스트 업데이트 
-        takeBtn.innerText = `💊 복용 (${takenCount}/${totalTimes} 완료)`;
-
-        // 5. 최종 완료 여부
-        if (takenCount === totalTimes) {
-            takeBtn.innerText = "✅ 오늘 복용 완료";
-        }
-
-        alert(`✅ ${drugName} ${dose}정을 복용했습니다. 남은 재고: ${stock}정`);
-        saveCards(); // 변경된 takenCountToday 포함하여 저장
-
+    if (stock >= dose) {
+      stock -= dose;
+      newCard.dataset.stock = stock;
+      newCard.querySelector(".stock").innerText = stock;
+      alert(`${dose}정을 복용했습니다. 남은 재고: ${stock}정`);
     } else {
-        // '취소'를 눌렀을 때
-        alert("복용 처리가 취소되었습니다.");
+      alert("⚠️ 재고가 부족합니다!");
     }
-});
-    
+    saveCards();
+  });
 
   // ✅ select 변경 시 색상 변경
   const select = newCard.querySelector(".drug-info__subtitle select");
@@ -332,46 +219,3 @@ addBtn.addEventListener("click", showAddForm);
 
 // ✅ 페이지 로드시 실행
 loadCards();
-
-function makeEditable(element, saveCallback, isNumber = false) {
-  element.addEventListener("click", () => {
-    const oldValue = element.innerText.trim();
-    const input = document.createElement("input");
-
-    input.type = isNumber ? "number" : "text";
-    input.value = isNumber ? parseInt(oldValue) || 0 : oldValue;
-
-    input.style.width = "80px";
-    input.style.fontSize = "14px";
-
-    element.replaceWith(input);
-    input.focus();
-
-    // 입력 확정 함수
-    const finish = () => {
-      let newValue = input.value;
-
-      if (isNumber) {
-        newValue = parseInt(newValue);
-        if (isNaN(newValue)) newValue = 0;
-      }
-
-      const p = document.createElement("p");
-      p.className = element.className;
-      p.innerText = newValue;
-
-      input.replaceWith(p);
-
-      saveCallback(newValue);
-      saveCards();
-
-      // 다시 수정 가능하게 이벤트 등록
-      makeEditable(p, saveCallback, isNumber);
-    };
-
-    input.addEventListener("blur", finish);
-    input.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") finish();
-    });
-  });
-}
