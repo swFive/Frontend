@@ -398,6 +398,19 @@ body{
     font-weight: 600;
 }
 
+.calendar-days button.is-selected{
+    background: #1A71FF;
+    color: #fff;
+    font-weight: 700;
+    box-shadow: 0 10px 20px rgba(26, 113, 255, 0.25);
+}
+
+.calendar-days button.is-placeholder{
+    opacity: 0;
+    pointer-events: none;
+    cursor: default;
+}
+
 .summary-card{
     background: #B3C3DD;
     color: #252B61;
