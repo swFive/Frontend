@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Weekly Report</title>
+    <link rel="stylesheet" href="./css/reset.css" />
+    <link rel="stylesheet" href="./css/variables.css" />
+    <link rel="stylesheet" href="./css/styles.css" />
+    <link rel="stylesheet" href="./css/components/header_bar.css" />
+    <link rel="stylesheet" href="./css/components/listbox_list.css" />
+    <link rel="stylesheet" href="./css/components/search.css" />
+    <link rel="stylesheet" href="./css/components/toast.css" />
+    <link rel="stylesheet" href="./css/screens/weekly.css" />
+  </head>
+  <body>
+    <header class="header_bar">
+      <div class="header_bar__logobox">
+        <a href="./index.html">MediCheck</a>
+      </div>
+      <nav class="header_bar__nav" aria-label="주요 메뉴">
+        <a class="header_bar__nav__box" href="./index.html">Home</a>
+        <a class="header_bar__nav__box" href="./medication.html">Medication management</a>
+        <a class="header_bar__nav__box is-active" href="./weekly.html">Weekly report</a>
+        <a class="header_bar__nav__box" href="#">Notice</a>
+      </nav>
+      <div class="header_bar__useraction">
+        <p class="header_bar__date"><!-- 현재시각 --></p>
+        <button class="header_bar__notif" type="button">
+          <span>Notification</span>
+          <span class="header_bar__notif-dot" aria-hidden="true"></span>
+        </button>
+        <a class="header_bar__useraction__logintext" href="./login.html">logout</a>
+      </div>
+    </header>
+    <main class="weekly-page">
+      <section class="weekly-calendar-section">
+        <div class="weekly-calendar-header">
+          <h1 class="page-title">Weekly Report</h1>
+          <div class="weekly-period-selector">
+            <button class="weekly-nav-btn" data-dir="prev">&#60;</button>
+            <span class="weekly-period-label">2025년 9월 8주차</span>
+            <button class="weekly-nav-btn" data-dir="next">&#62;</button>
+          </div>
+        </div>
+        <div class="weekly-calendar">
+          <div class="weekly-day" data-day="sun">
+            <div class="weekly-day-label">SUN</div>
+            <div class="weekly-day-date">7</div>
+          </div>
+          <div class="weekly-day" data-day="mon">
+            <div class="weekly-day-label">MON</div>
+            <div class="weekly-day-date">8</div>
+          </div>
+          <div class="weekly-day" data-day="tue">
+            <div class="weekly-day-label">TUE</div>
+            <div class="weekly-day-date">9</div>
+          </div>
+          <div class="weekly-day" data-day="wed">
+            <div class="weekly-day-label">WED</div>
+            <div class="weekly-day-date">10</div>
+          </div>
+          <div class="weekly-day" data-day="thu">
+            <div class="weekly-day-label">THU</div>
+            <div class="weekly-day-date">11</div>
+          </div>
+          <div class="weekly-day" data-day="fri">
+            <div class="weekly-day-label">FRI</div>
+            <div class="weekly-day-date">12</div>
+          </div>
+          <div class="weekly-day" data-day="sat">
+            <div class="weekly-day-label">SAT</div>
+            <div class="weekly-day-date">13</div>
+          </div>
+        </div>
+        <div class="weekly-legend">
+          <span class="legend-item legend-success">복용 완료</span>
+          <span class="legend-item legend-miss">미복용</span>
+          <span class="legend-item legend-late">지각</span>
+        </div>
+      </section>
+      <section class="weekly-detail-section">
+        <div class="weekly-card weekly-history-card">
+          <h2 class="weekly-card-title"><span class="weekly-selected-date">2025-09-13</span> 복용기록</h2>
+          <ul class="weekly-history-list">
+            <!-- JS로 채워짐 -->
+          </ul>
+        </div>
+        <div class="weekly-card weekly-summary-card">
+          <h2 class="weekly-card-title">최근 7일 복용 현황</h2>
+          <div class="weekly-summary-bars">
+            <!-- JS로 채워짐 -->
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div id="toast-root"></div>
+
+    <script src="./js/components/header_bar.js" type="module"></script>
+    <script src="./js/components/toast.js" type="module"></script>
+    <script src="./js/screens/weekly.js" type="module"></script>
+  </body>
+</html>
