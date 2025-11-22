@@ -214,9 +214,17 @@ document.addEventListener("DOMContentLoaded", () => {
         button.addEventListener('click', () => {
             const nextState = button.dataset.state === 'done' ? 'missed' : 'done';
             applyState(button, nextState);
-            // ⭐ 복용 상태 변경 시 Summary Card 업데이트 (추가 필요)
+            // 복용 상태 변경 시 Summary Card 업데이트 (추가 필요)
             // updateSummaryCard(); 
         });
+        const drugTitle = button.closest('.today-meds__row').dataset.drugTitle;
+        
+        // 1. 해당 약물의 takenCountToday 값을 로컬 스토리지에서 실제로 업데이트하는 로직 (medication.js에 정의된 함수 필요)
+        updateMedicationTakenCount(drugTitle, nextState); 
+        
+        // 2. Summary Card 및 Today Meds 재갱신
+        renderTodayMeds(); 
+        updateSummaryCard();
     });
 
     // 2. 데이터 기반 UI 렌더링 및 업데이트

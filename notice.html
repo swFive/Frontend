@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediCheck</title>
+    <link rel="stylesheet" href="./css/styles.css">
+</head>
+<body>
+    <header class="header_bar">
+        <div class="header_bar__logobox">
+            <a href="./index.html">MediCheck</a>
+        </div>
+        <nav class="header_bar__nav" aria-label="주요 메뉴">
+            <a class="header_bar__nav__box" href="./index.html">Home</a>
+            <a class="header_bar__nav__box" href="./medication.html">Medication management</a>
+            <a class="header_bar__nav__box" href="#">Weekly report</a>
+            <a class="header_bar__nav__box is-active" href="./notice.html">Notice</a>
+        </nav>
+        <div class="header_bar__useraction">
+            <p class="header_bar__date"><!-- 현재시각 --></p>
+            <button class="header_bar__notif" type="button">
+                <span>Notification</span>
+                <span class="header_bar__notif-dot" aria-hidden="true"></span>
+            </button>
+            <a class="header_bar__useraction__logintext" href="./login.html">logout</a>
+        </div>
+    </header>
+
+    <main id="main" class="report">
+        <div class="report__container">
+            <h1>복용 통계 및 리포트</h1>
+
+            <section class="report__summary-cards">
+                <article class="stat-card stat-card--missed">
+                    <p class="stat-card__title">이번 주 미복용</p>
+                    <p class="stat-card__value" id="missed-weekly">?</p> <p class="stat-card__comparison">
+                        지난 주 대비 <span id="missed-change-text" class="trend-up">?</span> </p>
+                </article>
+                <article class="stat-card stat-card--late">
+                    <p class="stat-card__title">이번 주 지각</p>
+                    <p class="stat-card__value" id="late-weekly">?</p> <p class="stat-card__comparison">
+                        지난 주 대비 <span id="late-change-text" class="trend-down">?</span> </p>
+                </article>
+                <article class="stat-card stat-card--success">
+                    <p class="stat-card__title">이번 달 복용 성공률</p>
+                    <p class="stat-card__value" id="success-monthly">?</p> <p class="stat-card__goal" id="success-target-text">?</p> </article>
+            </section>
+
+            <section class="report__detail-grid">
+                
+                <article class="chart-card chart-card--weekly">
+                    <h2 class="chart-card__title">요일별 미복용/지각</h2>
+                    <div class="weekly-bar-chart" id="day-bar-chart">
+                        </div>
+                </article>
+
+                <article class="chart-card chart-card--time">
+                    <h2 class="chart-card__title">시간대별 누락</h2>
+                    <div class="time-bar-chart" id="time-bar-chart">
+                        </div>
+                </article>
+
+                <article class="chart-card chart-card--top3">
+                    <h2 class="chart-card__title">약물별 미복용 Top 3</h2>
+                    <div class="top3-doughnut-chart" id="drug-doughnut-chart">
+                        <div class="chart-wrapper" id="chart-prescribed"></div>
+                        <div class="chart-wrapper" id="chart-probiotics"></div>
+                        <div class="chart-wrapper" id="chart-vitamin"></div>
+                    </div>
+                </article>
+            </section>
+        </div>
+    </main>
+
+    <script src="./js/components/toast.js"></script>
+    <script src="./js/components/header_bar.js"></script>
+    <script src="./js/screens/medication.js"></script>
+    <script src="./js/screens/mainpage.js"></script>
+    <script src="./js/screens/login.js"></script>
+    <script src="./js/screens/notice.js"></script>
+    <script src="https://kit.fontawesome.com/4194a407b7.js" crossorigin="anonymous"></script>
+</body>
+</html>
