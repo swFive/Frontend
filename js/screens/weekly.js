@@ -19,7 +19,7 @@ let selectedDateLabelEl;
 let summaryContainerEl;
 let currentWeekAnchor = new Date();
 let selectedDayKey = DAY_KEYS[new Date().getDay()];
-let selectedDateStr = formatDate(new Date());
+let selectedDateStr = (window.MediCommon?.formatDate || ((d)=>d.toISOString().split('T')[0]))(new Date());
 let manualConditionValue = "";
 let manualRefs = {};
 
@@ -31,12 +31,7 @@ document.addEventListener("DOMContentLoaded", () => {
 // ==================================================
 // 🔹 날짜 관련 헬퍼
 // ==================================================
-function formatDate(date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
+// formatDate 중복 제거 → MediCommon.formatDate 사용
 
 function getWeekLabel(date) {
   const year = date.getFullYear();
@@ -89,7 +84,7 @@ function buildWeeklyData(anchorDate) {
 
   dates.forEach((date, idx) => {
     const key = DAY_KEYS[idx];
-    const dayStr = formatDate(date);
+    const dayStr = window.MediCommon.formatDate(date);
     const entries = history[dayStr] || [];
     const summary = { success: 0, miss: 0, late: 0 };
 
@@ -146,7 +141,7 @@ function initWeeklyPage() {
     const idx = DAY_KEYS.indexOf(key);
     const dateObj = weekDates[idx >= 0 ? idx : index];
     dayEl.dataset.day = key;
-    dayEl.dataset.fullDate = formatDate(dateObj);
+    dayEl.dataset.fullDate = window.MediCommon.formatDate(dateObj);
 
     const dateEl = dayEl.querySelector(".weekly-day-date");
     if (dateEl) dateEl.textContent = dateObj.getDate();
@@ -168,7 +163,7 @@ function selectDay(dayKey, dayElement) {
   const idx = DAY_KEYS.indexOf(dayKey);
   const dateObj = weekDates[idx >= 0 ? idx : 0];
   selectedDayKey = dayKey;
-  selectedDateStr = formatDate(dateObj);
+  selectedDateStr = window.MediCommon.formatDate(dateObj);
 
   weeklyDayEls.forEach((el) => el.classList.toggle("active", el === dayElement));
   renderHistory(

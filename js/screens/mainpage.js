@@ -30,11 +30,8 @@
 // ------------------------------
 // 유틸: 오늘 날짜 문자열(YYYY-MM-DD) 반환
 // ------------------------------
-function getTodayDateString() {
-    // toISOString()은 UTC 기준이므로 로컬일자를 원한다면 다른 처리 필요.
-    // 여기서는 간단히 YYYY-MM-DD 형식을 얻기 위해 사용.
-    return new Date().toISOString().split('T')[0];
-}
+// 중복된 날짜 유틸 제거 (MediCommon 사용 가능 시 활용)
+// const getTodayDateString = () => window.MediCommon?.getTodayDateString?.() || new Date().toISOString().split('T')[0];
 
 // ------------------------------
 // 로컬 스토리지에서 medicationCards 읽기
@@ -277,44 +274,13 @@ document.addEventListener("DOMContentLoaded", () => {
         const initial = button.dataset.initialState === 'done' ? 'done' : 'missed';
         applyState(button, initial);
 
-        // 클릭 시 상태 토글 및 로컬 스토리지 업데이트 → UI/요약 갱신
+        // 클릭 시: 현재 상태가 '미복용'이면 medication 페이지로 이동, 아니면 아무 것도 안 함
         button.addEventListener('click', () => {
-            // 토글된 상태 결정
-            const nextState = button.dataset.state === 'done' ? 'missed' : 'done';
-
-            // 1) 버튼 UI를 먼저 적용
-            applyState(button, nextState);
-
-            // 2) 데이터 갱신: 관련 약물의 takenCountToday 값을 실제로 변경해야 함.
-            //    이 함수는 외부에서 정의되어 있어야 한다. 기대 동작은 다음과 같음:
-            //      updateMedicationTakenCount(drugTitle, newState)
-            //    - drugTitle: data-drug-title 어트리뷰트에서 읽음
-            //    - newState: 'done'이면 해당 시간의 복용을 증가시키거나 플래그를 세팅,
-            //                'missed'이면 감소시키거나 취소 처리
-            //    - 내부적으로 localStorage의 medicationCards를 갱신하고 저장해야 함.
-            const row = button.closest('.today-meds__row');
-            const drugTitle = row ? row.dataset.drugTitle : null;
-
-            if (typeof updateMedicationTakenCount === 'function') {
-                try {
-                    updateMedicationTakenCount(drugTitle, nextState);
-                } catch (e) {
-                    console.error('updateMedicationTakenCount 실행 중 오류:', e);
-                }
-            } else {
-                // 함수가 정의되어 있지 않으면 경고. 실제 업데이트가 없다면 그 사실을 개발자에게 알림.
-                console.warn('updateMedicationTakenCount 함수가 정의되어 있지 않습니다. 로컬 데이터 갱신 로직을 구현하세요.');
+            if (button.dataset.state === 'missed') {
+                window.location.href = './medication.html';
             }
-
-            // 3) 데이터 기반 UI 재렌더링(요약 카드 포함)
-            //    renderTodayMeds는 전체 today-meds DOM을 재생성하므로 기존 버튼 레퍼런스는 무효화됨.
-            //    이 코드는 간단한 흐름을 위해 전체 재렌더링을 호출하지만, 성능을 위해서는
-            //    부분 업데이트(해당 row만 변경)로 최적화 가능.
-            renderTodayMeds();
-            updateSummaryCard();
-
-            // 참고: renderTodayMeds를 호출하면 현재 콜백 내부의 버튼 참조는 더 이상 유효.
-            // 이후 추가 바인딩이 필요하면 이벤트 위임을 사용하거나 render 이후 재바인딩을 해야 함.
         });
     });
 });
+
+// (요청에 따라 복용 완료 저장 로직 제거; 다른 페이지 공유 X, 단순 이동 동작만 유지)

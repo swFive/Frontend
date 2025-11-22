@@ -3,6 +3,7 @@
 // ----------------------------
 const grid = document.getElementById("medicationGrid");  // 약 카드들이 들어가는 그리드
 const addBtn = document.getElementById("addDrugBtn");    // 새 약 추가 버튼
+const storageApi = window.MediStorage;
 
 // ----------------------------
 // 🔹 복용 타입별 색상 설정
@@ -43,7 +44,7 @@ function isTimeLate(scheduledTime, actualTime) {
 // 🔹 localStorage에서 카드 로드/저장
 // ==================================================
 function loadCards() {
-  const data = JSON.parse(localStorage.getItem("medicationCards")) || [];
+  const data = storageApi?.getMedicationCards?.() || JSON.parse(localStorage.getItem("medicationCards")) || [];
   data.forEach(card => createCard(card, false));
 
   // 선택적 UI 업데이트 함수 호출
@@ -69,13 +70,15 @@ function saveCards() {
     lateCountToday: parseInt(card.dataset.lateCountToday) || 0, // 지각 횟수
     lastTakenDate: card.dataset.lastTakenDate || ""
   }));
-  localStorage.setItem("medicationCards", JSON.stringify(allCards));
+  if (storageApi?.saveMedicationCards) {
+    storageApi.saveMedicationCards(allCards);
+  } else {
+    localStorage.setItem("medicationCards", JSON.stringify(allCards));
+  }
 }
 
-// 오늘 날짜 문자열 ("YYYY-MM-DD")
-function getTodayDateString() {
-  return new Date().toISOString().split('T')[0];
-}
+// 오늘 날짜 문자열 → MediCommon 사용
+const getTodayDateString = () => (window.MediCommon?.getTodayDateString) ? window.MediCommon.getTodayDateString() : new Date().toISOString().split('T')[0];
 
 // ==================================================
 // 🔹 카드 생성 함수
@@ -246,6 +249,11 @@ function createCard(cardData, save = true) {
       saveCards();
     }
   });
+
+  // 새 카드를 실제 그리드에 꽂아 Add 카드 앞에 노출
+  if (grid && addBtn) {
+    grid.insertBefore(newCard, addBtn);
+  }
 
   if (save) saveCards();
 }

@@ -4,17 +4,17 @@
       {
         "user_id": 1,
         "kakao_id": 1001,
-        "name": "민주"
+        "name": "유저a"
       },
       {
         "user_id": 2,
         "kakao_id": 1002,
-        "name": "수진"
+        "name": "유저b"
       },
       {
         "user_id": 3,
         "kakao_id": 1003,
-        "name": "보람"
+        "name": "유저c"
       }
     ],
     "UserMedications": [
