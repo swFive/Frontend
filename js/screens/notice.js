@@ -159,8 +159,6 @@ function calculateReportData(allMeds) {
 
 // --- 렌더링 함수 ---
 
-// ... (updateSummaryCards, renderDailyBarChart, renderTopDrugsDoughnut 기존 로직 유지) ...
-
 /**
  * 1. Summary Cards (주요 지표)를 업데이트합니다.
  */
