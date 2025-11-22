@@ -44,9 +44,11 @@
     padding: 12px 18px;
     border-radius: 22px;
     background: rgba(255, 255, 255, 0.35);
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: hidden;
     position: relative;
     backdrop-filter: blur(7px);
+    -webkit-overflow-scrolling: touch;
 }
 
 .header_bar__nav__box{
@@ -186,7 +188,9 @@
         border-radius: 18px;
         gap: 10px;
         justify-content: flex-start;
-        overflow: hidden;
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
     }
     .header_bar__nav__box{
         flex: 0 0 auto;

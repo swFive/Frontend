@@ -15,7 +15,7 @@
         <nav class="header_bar__nav" aria-label="주요 메뉴">
             <a class="header_bar__nav__box is-active" href="./index.html">Home</a>
             <a class="header_bar__nav__box" href="./medication.html">Medication management</a>
-            <a class="header_bar__nav__box" href="#">Weekly report</a>
+            <a class="header_bar__nav__box" href="./weekly.html">Weekly report</a>
             <a class="header_bar__nav__box" href="./notice.html">Notice</a>
         </nav>
         <div class="header_bar__useraction">
@@ -98,8 +98,8 @@
                             <p class="calendar-card__subtitle">September 2025</p>
                         </div>
                         <div class="calendar-card__nav">
-                            <button type="button" aria-label="이전 달">&lt;</button>
-                            <button type="button" aria-label="다음 달">&gt;</button>
+                            <button type="button" aria-label="이전 달" data-calendar-nav="prev">&lt;</button>
+                            <button type="button" aria-label="다음 달" data-calendar-nav="next">&gt;</button>
                         </div>
                     </div>
                     <div class="calendar-weekdays">
@@ -171,6 +171,47 @@
             <div class="dashboard__divider" aria-hidden="true"></div>
 
             <section class="dashboard__category-grid" aria-label="보관 중인 약 카테고리">
+                <article class="category-card">
+                    <p class="category-card__title">처방약</p>
+                    <ul>
+                        <li>한미 알마게이트 정 500mg</li>
+                        <li>한미 파모티딘 정 20mg</li>
+                        <li>모사메드 정 5mg</li>
+                        <li>스파로드 정</li>
+                    </ul>
+                    <button class="category-card__cta" type="button" aria-label="처방약 상세 보기">&gt;</button>
+                </article>
+                <article class="category-card">
+                    <p class="category-card__title">유산균</p>
+                    <ul>
+                        <li>락토핏</li>
+                    </ul>
+                    <button class="category-card__cta" type="button" aria-label="유산균 상세 보기">&gt;</button>
+                </article>
+                <article class="category-card">
+                    <p class="category-card__title">간 영양제</p>
+                    <ul>
+                        <li>밀크씨슬</li>
+                    </ul>
+                    <button class="category-card__cta" type="button" aria-label="간 영양제 상세 보기">&gt;</button>
+                </article>
+                <article class="category-card">
+                    <p class="category-card__title">멀티 비타민</p>
+                    <ul>
+                        <li>센트룸 우먼</li>
+                    </ul>
+                    <button class="category-card__cta" type="button" aria-label="멀티 비타민 상세 보기">&gt;</button>
+                </article>
+                <article class="category-card">
+                    <p class="category-card__title">오메가 3</p>
+                    <ul>
+                        <li>고려은단</li>
+                    </ul>
+                    <button class="category-card__cta" type="button" aria-label="오메가3 상세 보기">&gt;</button>
+                </article>
+                <article class="category-card category-card--add">
+                    <button type="button" aria-label="새 약 카테고리 추가">+</button>
+                </article>
             </section>
 
             <div class="dashboard__divider" aria-hidden="true"></div>

@@ -1,7 +1,6 @@
 const grid = document.getElementById("medicationGrid");
 const addBtn = document.getElementById("addDrugBtn");
 
-// ✅ 복용 타입별 색상
 const typeColors = {
   "필수 복용": { light: "#ffd0d0", deep: "#f28282" }, // 빨
   "기간제": { light: "#d0d0ff", deep: "#8282f2" }, // 파
@@ -54,7 +53,6 @@ function loadCards() {
   }
 }
 
-// ✅ localStorage 저장
 function saveCards() {
   const allCards = [...document.querySelectorAll(".drug-card")].map(card => ({
     title: card.querySelector(".drug-info__title p").innerText,
@@ -315,7 +313,6 @@ makeEditable(
   if (save) saveCards();
 }
 
-// ✅ 약 추가 폼
 function showAddForm() {
   const wrapper = document.createElement("div");
   wrapper.className = "modal-bg";
@@ -395,11 +392,7 @@ function showAddForm() {
     wrapper.remove();
   };
 }
-
-// ✅ 추가 버튼 클릭 시
 addBtn.addEventListener("click", showAddForm);
-
-
 
 function makeEditable(element, saveCallback, isNumber = false) {
   element.addEventListener("click", () => {
@@ -444,5 +437,4 @@ function makeEditable(element, saveCallback, isNumber = false) {
   });
 }
 
-// 페이지 로드시 실행
 loadCards();
