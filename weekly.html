@@ -92,6 +92,70 @@
             <!-- JS로 채워짐 -->
           </div>
         </div>
+        <div class="weekly-card intake-manual-card">
+          <div class="intake-manual-header">
+            <h2 class="weekly-card-title">복용 이력 &amp; 증상 관리</h2>
+            <label class="manual-date-field">
+              기록 날짜
+              <input type="date" id="manualDatePicker" />
+            </label>
+          </div>
+          <div class="manual-section-grid">
+            <div class="manual-drug-column">
+              <div class="manual-field-header">
+                <p>복용 그룹 선택</p>
+                <div class="manual-group-controls">
+                  <select id="manualGroupSelect" aria-label="저장된 복용 그룹 선택">
+                    <option value="">그룹 선택</option>
+                  </select>
+                  <button type="button" id="manualApplyGroupBtn" class="manual-secondary-btn">적용</button>
+                </div>
+              </div>
+              <div id="manualDrugList" class="manual-drug-list" aria-label="복용할 약 선택">
+                <!-- JS -->
+              </div>
+              <button type="button" id="manualSaveGroupBtn" class="manual-secondary-btn manual-block-btn">선택 약 그룹 저장</button>
+            </div>
+            <div class="manual-input-column">
+              <div class="manual-input-row">
+                <label>
+                  복용 상태
+                  <select id="manualStatusSelect">
+                    <option value="success">복용 완료</option>
+                    <option value="miss">미복용</option>
+                    <option value="late">지각</option>
+                  </select>
+                </label>
+                <label>
+                  섭취 시간
+                  <input type="time" id="manualTimeInput" />
+                </label>
+              </div>
+              <div class="manual-condition-row" role="group" aria-label="컨디션 이모지 선택">
+                <span>컨디션</span>
+                <div class="condition-emoji-group">
+                  <button type="button" class="condition-emoji-btn" data-value="good">😀</button>
+                  <button type="button" class="condition-emoji-btn" data-value="normal">😐</button>
+                  <button type="button" class="condition-emoji-btn" data-value="bad">😣</button>
+                </div>
+              </div>
+              <label class="manual-memo-field">
+                증상/메모
+                <textarea id="manualMemoInput" rows="3" placeholder="복용 후 느낀 점을 입력하세요"></textarea>
+              </label>
+              <button type="button" id="manualAddRecordBtn" class="manual-primary-btn manual-block-btn">복용 기록 추가</button>
+            </div>
+          </div>
+          <div class="manual-history-block">
+            <div class="manual-history-header">
+              <h3>수동 기록</h3>
+              <p class="manual-history-hint">선택한 날짜의 기록만 표시됩니다.</p>
+            </div>
+            <ul id="manualHistoryList" class="manual-history-list" aria-live="polite">
+              <!-- JS -->
+            </ul>
+          </div>
+        </div>
       </section>
     </main>
 
