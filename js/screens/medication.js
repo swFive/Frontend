@@ -1,20 +1,46 @@
 const grid = document.getElementById("medicationGrid");
 const addBtn = document.getElementById("addDrugBtn");
 
-// ✅ 복용 타입별 색상
 const typeColors = {
-  "필수 복용": { light: "#ffd0d0", deep: "#f28282" }, // 빨
-  "기간제": { light: "#d0d0ff", deep: "#8282f2" }, // 파
-  "건강보조제": { light: "#fff7b0", deep: "#ffe12e" } // 노
+  "필수 복용": { light: "#ffd0d0", deep: "#f28282" },
+  "기간제": { light: "#d0d0ff", deep: "#8282f2" },
+  "건강보조제": { light: "#fff7b0", deep: "#ffe12e" }
 };
 
-// ✅ localStorage에서 카드 로드
+function getTodayDateString() {
+  return new Date().toISOString().split("T")[0];
+}
+
+function updateTakeButtonLabel(cardElement) {
+  const takeBtn = cardElement.querySelector(".take-btn");
+  if (!takeBtn) return;
+  const taken = parseInt(cardElement.dataset.takenCountToday, 10) || 0;
+  const total = parseInt(cardElement.dataset.dailyTimes, 10) || 1;
+  if (taken >= total) {
+    takeBtn.innerText = "✅ 오늘 복용 완료";
+  } else {
+    takeBtn.innerText = `💊 복용 (${taken}/${total} 완료)`;
+  }
+}
+
+function ensureTodayState(cardElement) {
+  if (cardElement.dataset.lastTakenDate !== getTodayDateString()) {
+    cardElement.dataset.takenCountToday = "0";
+  }
+  updateTakeButtonLabel(cardElement);
+}
+
 function loadCards() {
   const data = JSON.parse(localStorage.getItem("medicationCards")) || [];
   data.forEach(card => createCard(card, false));
+  if (typeof renderTodayMeds === "function") {
+    renderTodayMeds();
+  }
+  if (typeof updateSummaryCard === "function") {
+    updateSummaryCard();
+  }
 }
 
-// ✅ localStorage 저장
 function saveCards() {
   const allCards = [...document.querySelectorAll(".drug-card")].map(card => ({
     title: card.querySelector(".drug-info__title p").innerText,
@@ -24,30 +50,39 @@ function saveCards() {
     time: [...card.querySelectorAll(".time-item")].map(p => p.innerText),
     next: card.querySelector(".next").innerText,
     dose: card.querySelector(".dose").innerText,
-    stock: parseInt(card.querySelector(".stock").innerText.replace("정", "").trim(), 10),
-    doseCount: card.dataset.doseCount || "1",
+    stock: parseInt(card.dataset.stock, 10) || 0,
+    doseCount: parseInt(card.dataset.doseCount, 10) || 1,
     startDate: card.dataset.startDate || "",
-    endDate: card.dataset.endDate || ""
+    endDate: card.dataset.endDate || "",
+    takenCountToday: parseInt(card.dataset.takenCountToday, 10) || 0,
+    dailyTimes: parseInt(card.dataset.dailyTimes, 10) || 1,
+    lastTakenDate: card.dataset.lastTakenDate || ""
   }));
   localStorage.setItem("medicationCards", JSON.stringify(allCards));
 }
 
-// ✅ 카드 생성
 function createCard(cardData, save = true) {
+  if (!grid || !addBtn) return;
   const newCard = document.createElement("div");
   newCard.classList.add("drug-card");
 
-  // 사용자 정의 카테고리면 보라색 기본값
   const color = typeColors[cardData.subtitle] || { light: "#e6d6ff", deep: "#a86af2" };
+  const drugList = Array.isArray(cardData.drugs) && cardData.drugs.length ? cardData.drugs : ["메모"];
+  const times = Array.isArray(cardData.time) ? cardData.time.filter(Boolean) : [cardData.time].filter(Boolean);
+  const displayTimes = times.length ? times : ["-"];
+  const derivedDailyTimes = parseInt(cardData.dailyTimes, 10) || displayTimes.length || 1;
+  const stockValue = parseInt(cardData.stock, 10) || 0;
+  const doseValue = parseInt(cardData.doseCount, 10) || 1;
 
-  newCard.dataset.stock = cardData.stock || 0;
-  newCard.dataset.doseCount = cardData.doseCount || 1;
+  newCard.dataset.stock = String(stockValue);
+  newCard.dataset.doseCount = String(doseValue);
   newCard.dataset.startDate = cardData.startDate || "";
   newCard.dataset.endDate = cardData.endDate || "";
+  newCard.dataset.dailyTimes = String(derivedDailyTimes);
+  newCard.dataset.takenCountToday = String(cardData.takenCountToday || 0);
+  newCard.dataset.lastTakenDate = cardData.lastTakenDate || "";
 
-  const timeHTML = Array.isArray(cardData.time)
-    ? cardData.time.map(t => `<p class="time-item">${t}</p>`).join("")
-    : `<p class="time-item">${cardData.time}</p>`;
+  const timeHTML = displayTimes.map(t => `<p class="time-item">${t}</p>`).join("");
 
   newCard.innerHTML = `
     <div class="color-tool-red">
@@ -61,14 +96,14 @@ function createCard(cardData, save = true) {
       <div class="drug-info__title"><p>${cardData.title}</p></div>
       <div class="drug-info__subtitle">
         <select class="inline-select">
-          <option ${cardData.subtitle==="필수 복용" ? "selected" : ""}>필수 복용</option>
-          <option ${cardData.subtitle==="기간제" ? "selected" : ""}>기간제</option>
-          <option ${cardData.subtitle==="건강보조제" ? "selected" : ""}>건강보조제</option>
+          <option ${cardData.subtitle === "필수 복용" ? "selected" : ""}>필수 복용</option>
+          <option ${cardData.subtitle === "기간제" ? "selected" : ""}>기간제</option>
+          <option ${cardData.subtitle === "건강보조제" ? "selected" : ""}>건강보조제</option>
           <option ${!(cardData.subtitle in typeColors) ? "selected" : ""}>${cardData.subtitle}</option>
         </select>
       </div>
       <div class="drug-info__list">
-        <div>${cardData.drugs.map(d => `<p>${d}</p>`).join("")}</div>
+        <div>${drugList.map(d => `<p>${d}</p>`).join("")}</div>
       </div>
     </div>
 
@@ -77,63 +112,80 @@ function createCard(cardData, save = true) {
       <div class="drug-rule-info__row time">${timeHTML}</div>
       <div class="drug-rule-info__row"><p class="next">${cardData.next}</p></div>
       <div class="drug-rule-info__row"><p class="dose">${cardData.dose}</p></div>
-      <div class="drug-rule-info__row stock-row">재고: <span class="stock">${cardData.stock || 0}</span>정</div>
+      <div class="drug-rule-info__row stock-row">재고: <span class="stock">${stockValue}</span>정</div>
       <div class="drug-rule-info__row period">기간: ${cardData.startDate || "-"} ~ ${cardData.endDate || "-"}</div>
       <button class="take-btn">💊 복용</button>
     </div>
   `;
 
   grid.insertBefore(newCard, addBtn);
+  ensureTodayState(newCard);
 
-  // ✅ 복용 버튼 로직
   const takeBtn = newCard.querySelector(".take-btn");
   takeBtn.addEventListener("click", () => {
-    let stock = parseInt(newCard.dataset.stock);
-    const dose = parseInt(newCard.dataset.doseCount);
+    let stock = parseInt(newCard.dataset.stock, 10) || 0;
+    const dose = parseInt(newCard.dataset.doseCount, 10) || 1;
+    const totalTimes = parseInt(newCard.dataset.dailyTimes, 10) || 1;
+    let takenCount = parseInt(newCard.dataset.takenCountToday, 10) || 0;
+    const drugName = newCard.querySelector(".drug-info__title p").innerText;
 
-    if (stock >= dose) {
-      stock -= dose;
-      newCard.dataset.stock = stock;
-      newCard.querySelector(".stock").innerText = stock;
-      alert(`${dose}정을 복용했습니다. 남은 재고: ${stock}정`);
-    } else {
-      alert("⚠️ 재고가 부족합니다!");
+    if (takenCount >= totalTimes) {
+      alert("오늘은 이미 모든 복용을 완료했습니다.");
+      return;
     }
+
+    const confirmation = confirm(`[${drugName}] ${dose}정을 복용하시겠습니까? 복용을 완료하면 재고가 차감됩니다.`);
+    if (!confirmation) return;
+
+    if (stock < dose) {
+      alert("⚠️ 재고가 부족합니다! 재고를 확인해 주세요.");
+      return;
+    }
+
+    stock -= dose;
+    takenCount += 1;
+    newCard.dataset.stock = String(stock);
+    newCard.dataset.takenCountToday = String(takenCount);
+    newCard.dataset.lastTakenDate = getTodayDateString();
+    newCard.querySelector(".stock").innerText = stock;
+    updateTakeButtonLabel(newCard);
+
+    alert(`✅ ${drugName} ${dose}정을 복용했습니다. 남은 재고: ${stock}정`);
     saveCards();
+    if (typeof renderTodayMeds === "function") {
+      renderTodayMeds();
+    }
+    if (typeof updateSummaryCard === "function") {
+      updateSummaryCard();
+    }
   });
 
-  // ✅ select 변경 시 색상 변경
   const select = newCard.querySelector(".drug-info__subtitle select");
   select.addEventListener("change", () => {
     const selected = select.value;
-
-    if (!(selected in typeColors)) {
-      // 사용자 정의 카테고리인 경우 → 보라색
-      const customColor = { light: "#e6d6ff", deep: "#a86af2" };
-      newCard.querySelector(".color-tool-red__lilight").style.background = customColor.light;
-      newCard.querySelector(".color-tool-red__deep").style.background = customColor.deep;
-    } else {
-      const c = typeColors[selected];
-      newCard.querySelector(".color-tool-red__lilight").style.background = c.light;
-      newCard.querySelector(".color-tool-red__deep").style.background = c.deep;
-    }
-
+    const colorSet = typeColors[selected] || { light: "#e6d6ff", deep: "#a86af2" };
+    newCard.querySelector(".color-tool-red__lilight").style.background = colorSet.light;
+    newCard.querySelector(".color-tool-red__deep").style.background = colorSet.deep;
     saveCards();
   });
 
-  // ✅ 삭제 버튼
   const deleteBtn = newCard.querySelector(".delete-btn");
   deleteBtn.addEventListener("click", () => {
     if (confirm("이 약을 삭제하시겠습니까?")) {
       newCard.remove();
       saveCards();
+      if (typeof renderTodayMeds === "function") {
+        renderTodayMeds();
+      }
+      if (typeof updateSummaryCard === "function") {
+        updateSummaryCard();
+      }
     }
   });
 
   if (save) saveCards();
 }
 
-// ✅ 약 추가 폼
 function showAddForm() {
   const wrapper = document.createElement("div");
   wrapper.className = "modal-bg";
@@ -206,16 +258,57 @@ function showAddForm() {
       stock,
       doseCount,
       startDate,
-      endDate
+      endDate,
+      takenCountToday: 0,
+      dailyTimes: times.length || 1,
+      lastTakenDate: ""
     };
 
     createCard(newData);
     wrapper.remove();
   };
 }
-
-// ✅ 추가 버튼 클릭 시
 addBtn.addEventListener("click", showAddForm);
 
-// ✅ 페이지 로드시 실행
+function makeEditable(element, saveCallback, isNumber = false) {
+  element.addEventListener("click", () => {
+    const oldValue = element.innerText.trim();
+    const input = document.createElement("input");
+
+    input.type = isNumber ? "number" : "text";
+    input.value = isNumber ? parseInt(oldValue) || 0 : oldValue;
+
+    input.style.width = "80px";
+    input.style.fontSize = "14px";
+
+    element.replaceWith(input);
+    input.focus();
+
+    const finish = () => {
+      let newValue = input.value;
+
+      if (isNumber) {
+        newValue = parseInt(newValue);
+        if (isNaN(newValue)) newValue = 0;
+      }
+
+      const p = document.createElement("p");
+      p.className = element.className;
+      p.innerText = newValue;
+
+      input.replaceWith(p);
+
+      saveCallback(newValue);
+      saveCards();
+
+      makeEditable(p, saveCallback, isNumber);
+    };
+
+    input.addEventListener("blur", finish);
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") finish();
+    });
+  });
+}
+
 loadCards();
