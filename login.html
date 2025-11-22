@@ -81,6 +81,70 @@
                 <p>다른 계정은 준비 중이에요. 업데이트 소식을 메일로 받고 싶다면?</p>
                 <a href="#" class="login-card__link">알림 신청하기</a>
             </div>
+
+            <section class="auth-module" aria-label="이메일 로그인 및 회원가입">
+                <div class="auth-tabs" role="tablist">
+                    <button type="button" class="auth-tab is-active" data-target="login" role="tab" aria-selected="true">이메일 로그인</button>
+                    <button type="button" class="auth-tab" data-target="signup" role="tab" aria-selected="false">회원가입</button>
+                </div>
+
+                <form id="loginForm" class="auth-form is-active" novalidate>
+                    <div class="auth-field">
+                        <label for="loginEmail">이메일</label>
+                        <input type="email" id="loginEmail" name="email" placeholder="you@example.com" required />
+                        <p class="auth-field__error" data-error-for="loginEmail"></p>
+                    </div>
+                    <div class="auth-field">
+                        <label for="loginPassword">비밀번호</label>
+                        <input type="password" id="loginPassword" name="password" placeholder="8자 이상" minlength="8" required />
+                        <p class="auth-field__error" data-error-for="loginPassword"></p>
+                    </div>
+                    <div class="auth-inline-actions">
+                        <label class="auth-checkbox">
+                            <input type="checkbox" id="rememberMe" />
+                            <span>로그인 상태 유지</span>
+                        </label>
+                        <a href="#" class="auth-link">비밀번호 재설정</a>
+                    </div>
+                    <button type="submit" class="auth-submit">로그인</button>
+                </form>
+
+                <form id="signupForm" class="auth-form" novalidate>
+                    <div class="auth-field">
+                        <label for="signupName">이름</label>
+                        <input type="text" id="signupName" name="name" placeholder="홍길동" required />
+                        <p class="auth-field__error" data-error-for="signupName"></p>
+                    </div>
+                    <div class="auth-field">
+                        <label for="signupEmail">이메일</label>
+                        <input type="email" id="signupEmail" name="email" placeholder="name@example.com" required />
+                        <p class="auth-field__error" data-error-for="signupEmail"></p>
+                    </div>
+                    <div class="auth-field">
+                        <label for="signupPassword">비밀번호</label>
+                        <input type="password" id="signupPassword" name="password" placeholder="8자 이상" minlength="8" required />
+                        <p class="auth-field__error" data-error-for="signupPassword"></p>
+                    </div>
+                    <div class="auth-field">
+                        <label for="signupPasswordConfirm">비밀번호 확인</label>
+                        <input type="password" id="signupPasswordConfirm" name="passwordConfirm" placeholder="비밀번호를 다시 입력" minlength="8" required />
+                        <p class="auth-field__error" data-error-for="signupPasswordConfirm"></p>
+                    </div>
+                    <div class="terms-list" role="group" aria-labelledby="termsTitle">
+                        <p id="termsTitle" class="terms-title">약관 동의</p>
+                        <label class="terms-item">
+                            <input type="checkbox" id="termsRequired" required />
+                            <span>[필수] 서비스 이용약관 및 개인정보 처리방침 동의</span>
+                        </label>
+                        <label class="terms-item">
+                            <input type="checkbox" id="termsMarketing" />
+                            <span>[선택] 혜택 및 알림 메일 수신</span>
+                        </label>
+                    </div>
+                    <button type="submit" class="auth-submit">회원가입</button>
+                </form>
+                <p id="authFeedback" class="auth-feedback" role="status" aria-live="polite"></p>
+            </section>
         </section>
     </main>
 

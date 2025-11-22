@@ -271,6 +271,237 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ---------------------------
+  // 이메일 로그인 & 회원가입 UI
+  // ---------------------------
+  const REGISTER_KEY = 'mc_registered_users';
+  const SAVED_EMAIL_KEY = 'mc_saved_login_email';
+  const authTabs = document.querySelectorAll('.auth-tab');
+  const loginForm = document.getElementById('loginForm');
+  const signupForm = document.getElementById('signupForm');
+  const authFeedback = document.getElementById('authFeedback');
+  const rememberMe = document.getElementById('rememberMe');
+  const termsRequired = document.getElementById('termsRequired');
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  const formsByName = {
+    login: loginForm,
+    signup: signupForm,
+  };
+
+  function fireToast(message, type = 'info') {
+    if (typeof window.showToast === 'function') {
+      window.showToast(message, { type });
+    } else {
+      alert(message);
+    }
+  }
+
+  function getRegisteredUsers() {
+    try {
+      return JSON.parse(localStorage.getItem(REGISTER_KEY)) || [];
+    } catch {
+      return [];
+    }
+  }
+
+  function saveRegisteredUsers(list) {
+    localStorage.setItem(REGISTER_KEY, JSON.stringify(list));
+  }
+
+  function setFieldError(inputId, message) {
+    const input = document.getElementById(inputId);
+    if (input) {
+      if (message) {
+        input.classList.add('has-error');
+      } else {
+        input.classList.remove('has-error');
+      }
+    }
+    const errorEl = document.querySelector(`[data-error-for="${inputId}"]`);
+    if (errorEl) errorEl.textContent = message || '';
+  }
+
+  function clearFormErrors(form) {
+    if (!form) return;
+    form.querySelectorAll('input').forEach((input) => input.classList.remove('has-error'));
+    form.querySelectorAll('.auth-field__error').forEach((el) => (el.textContent = ''));
+  }
+
+  function setFeedback(message, type = 'info') {
+    if (!authFeedback) return;
+    authFeedback.textContent = message || '';
+    authFeedback.dataset.type = type;
+  }
+
+  function switchAuthForm(target) {
+    authTabs.forEach((tab) => {
+      const isActive = tab.dataset.target === target;
+      tab.classList.toggle('is-active', isActive);
+      tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    });
+    Object.entries(formsByName).forEach(([name, form]) => {
+      if (!form) return;
+      form.classList.toggle('is-active', name === target);
+    });
+    setFeedback('', 'info');
+  }
+
+  authTabs.forEach((tab) => {
+    tab.addEventListener('click', () => switchAuthForm(tab.dataset.target));
+  });
+
+  function prefillLoginEmail() {
+    const emailInput = document.getElementById('loginEmail');
+    if (!emailInput) return;
+    if (rememberMe && rememberMe.checked) return;
+    const saved = localStorage.getItem(SAVED_EMAIL_KEY);
+    if (saved) {
+      emailInput.value = saved;
+      if (rememberMe) rememberMe.checked = true;
+    }
+  }
+
+  function persistLoginUser(user, rememberEmail, emailValue) {
+    const payload = { ...user, loggedAt: Date.now() };
+    localStorage.setItem('mc_user', JSON.stringify(payload));
+    if (rememberEmail) {
+      localStorage.setItem(SAVED_EMAIL_KEY, emailValue);
+    } else {
+      localStorage.removeItem(SAVED_EMAIL_KEY);
+    }
+    try {
+      if (window.updateHeaderLoginState) window.updateHeaderLoginState();
+    } catch {}
+  }
+
+  function handleLoginSubmit(event) {
+    event.preventDefault();
+    if (!loginForm) return;
+    clearFormErrors(loginForm);
+    setFeedback('', 'info');
+
+    const emailInput = document.getElementById('loginEmail');
+    const passwordInput = document.getElementById('loginPassword');
+    const email = emailInput?.value.trim() || '';
+    const password = passwordInput?.value.trim() || '';
+    let hasError = false;
+
+    if (!emailRegex.test(email)) {
+      setFieldError('loginEmail', '올바른 이메일을 입력해주세요.');
+      hasError = true;
+    }
+    if (!password || password.length < 8) {
+      setFieldError('loginPassword', '비밀번호는 8자 이상 입력해주세요.');
+      hasError = true;
+    }
+    if (hasError) {
+      setFeedback('입력값을 다시 확인해주세요.', 'error');
+      fireToast('로그인 정보를 확인해주세요.', 'error');
+      return;
+    }
+
+    const users = getRegisteredUsers();
+    const matched = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
+
+    if (!matched) {
+      setFieldError('loginEmail', '가입된 이메일이 아닙니다.');
+      setFeedback('가입 정보를 찾을 수 없습니다.', 'error');
+      fireToast('가입 정보를 찾을 수 없습니다.', 'error');
+      return;
+    }
+
+    if (matched.password !== password) {
+      setFieldError('loginPassword', '비밀번호가 일치하지 않습니다.');
+      setFeedback('비밀번호를 다시 확인해주세요.', 'error');
+      fireToast('비밀번호를 확인해주세요.', 'error');
+      return;
+    }
+
+    persistLoginUser(matched, rememberMe?.checked, email);
+    fireToast('로그인되었어요.', 'success');
+    setFeedback('로그인에 성공했습니다.', 'success');
+    sessionStorage.setItem('mc_toast', JSON.stringify({ type: 'success', message: '환영합니다!' }));
+    window.location.href = './index.html';
+  }
+
+  function handleSignupSubmit(event) {
+    event.preventDefault();
+    if (!signupForm) return;
+    clearFormErrors(signupForm);
+    setFeedback('', 'info');
+
+    const nameInput = document.getElementById('signupName');
+    const emailInput = document.getElementById('signupEmail');
+    const passwordInput = document.getElementById('signupPassword');
+    const confirmInput = document.getElementById('signupPasswordConfirm');
+
+    const name = nameInput?.value.trim() || '';
+    const email = emailInput?.value.trim() || '';
+    const password = passwordInput?.value.trim() || '';
+    const confirm = confirmInput?.value.trim() || '';
+    let hasError = false;
+
+    if (!name) {
+      setFieldError('signupName', '이름을 입력해주세요.');
+      hasError = true;
+    }
+    if (!emailRegex.test(email)) {
+      setFieldError('signupEmail', '올바른 이메일 주소를 입력해주세요.');
+      hasError = true;
+    }
+    if (!password || password.length < 8) {
+      setFieldError('signupPassword', '비밀번호는 8자 이상입니다.');
+      hasError = true;
+    }
+    if (password !== confirm) {
+      setFieldError('signupPasswordConfirm', '비밀번호가 일치하지 않습니다.');
+      hasError = true;
+    }
+    if (!termsRequired?.checked) {
+      setFeedback('필수 약관에 동의해주세요.', 'error');
+      hasError = true;
+    }
+    if (hasError) {
+      fireToast('입력 정보를 다시 확인해주세요.', 'error');
+      return;
+    }
+
+    const users = getRegisteredUsers();
+    const duplicated = users.some((u) => u.email.toLowerCase() === email.toLowerCase());
+    if (duplicated) {
+      setFieldError('signupEmail', '이미 가입된 이메일입니다.');
+      setFeedback('다른 이메일을 사용해주세요.', 'error');
+      fireToast('이미 가입된 이메일입니다.', 'error');
+      return;
+    }
+
+    const newUser = {
+      id: `user-${Date.now()}`,
+      name,
+      email,
+      password,
+      marketing: Boolean(document.getElementById('termsMarketing')?.checked),
+    };
+    users.push(newUser);
+    saveRegisteredUsers(users);
+
+    fireToast('회원가입이 완료되었습니다.', 'success');
+    setFeedback('회원가입 완료! 로그인 탭에서 이어서 진행하세요.', 'success');
+    signupForm.reset();
+    switchAuthForm('login');
+    const loginEmailInput = document.getElementById('loginEmail');
+    const loginPasswordInput = document.getElementById('loginPassword');
+    if (loginEmailInput) loginEmailInput.value = email;
+    loginPasswordInput?.focus();
+  }
+
+  loginForm?.addEventListener('submit', handleLoginSubmit);
+  signupForm?.addEventListener('submit', handleSignupSubmit);
+
+  prefillLoginEmail();
+  switchAuthForm('login');
+
+  // ---------------------------
   // 추가 설명 / 개선 포인트 (주석 내부 참고용)
   // ---------------------------
   // 1) DOMContentLoaded 중첩:
