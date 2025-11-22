@@ -12,6 +12,13 @@ const typeColors = {
 function loadCards() {
   const data = JSON.parse(localStorage.getItem("medicationCards")) || [];
   data.forEach(card => createCard(card, false));
+
+  if (typeof renderTodayMeds === 'function') {
+    renderTodayMeds();
+  }
+  if (typeof updateSummaryCard === 'function') {
+    updateSummaryCard();
+  }
 }
 
 // ✅ localStorage 저장
@@ -207,6 +214,12 @@ makeEditable(
 
         alert(`✅ ${drugName} ${dose}정을 복용했습니다. 남은 재고: ${stock}정`);
         saveCards(); // 변경된 takenCountToday 포함하여 저장
+        if (typeof renderTodayMeds === 'function') {
+            renderTodayMeds();
+        }
+        if (typeof updateSummaryCard === 'function') {
+            updateSummaryCard();
+        }
 
     } else {
         // '취소'를 눌렀을 때
@@ -330,8 +343,7 @@ function showAddForm() {
 // ✅ 추가 버튼 클릭 시
 addBtn.addEventListener("click", showAddForm);
 
-// ✅ 페이지 로드시 실행
-loadCards();
+
 
 function makeEditable(element, saveCallback, isNumber = false) {
   element.addEventListener("click", () => {
@@ -375,3 +387,6 @@ function makeEditable(element, saveCallback, isNumber = false) {
     });
   });
 }
+
+// 페이지 로드시 실행
+loadCards();
