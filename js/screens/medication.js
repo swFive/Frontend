@@ -167,11 +167,14 @@ function createCard(cardData, save = true) {
   makeEditable(newCard.querySelector(".dose"), val => { newCard.dataset.doseCount = parseInt(val); }, true);
   makeEditable(newCard.querySelector(".stock"), val => { newCard.dataset.stock = parseInt(val); }, true);
 
-  grid.insertBefore(newCard, addBtn);
+  const infoArea = newCard.querySelector(".drug-info");
+  if (infoArea) {
+    infoArea.addEventListener("click", (event) => {
+      if (event.target.closest("select")) return;
+      showStockEditor(newCard);
+    });
+  }
 
-  // ----------------------------
-  // 🔹 복용 버튼 이벤트
-  // ----------------------------
   const takeBtn = newCard.querySelector(".take-btn");
   takeBtn.addEventListener("click", () => {
     let stock = parseInt(newCard.dataset.stock);
@@ -328,9 +331,48 @@ function showAddForm() {
 
 addBtn.addEventListener("click", showAddForm);
 
-// ==================================================
-// 🔹 makeEditable 함수 (클릭 시 편집 가능)
-// ==================================================
+function showStockEditor(cardElement) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "modal-bg";
+  const name = cardElement.querySelector(".drug-info__title p")?.innerText || "-";
+  const currentStock = parseInt(cardElement.dataset.stock, 10) || 0;
+
+  wrapper.innerHTML = `
+    <div class="modal">
+      <h3>${name} 재고 조정</h3>
+      <label>현재 재고(정)
+        <input type="number" id="editStock" min="0" value="${currentStock}">
+      </label>
+      <p style="font-size:12px; color:#666; margin:4px 0 12px;">재고 변경 사항은 즉시 저장됩니다.</p>
+      <div class="btn-row">
+        <button id="editCancel">취소</button>
+        <button id="editSave">저장</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(wrapper);
+  const stockInput = wrapper.querySelector("#editStock");
+
+  const close = () => wrapper.remove();
+  wrapper.querySelector("#editCancel").onclick = close;
+
+  wrapper.querySelector("#editSave").onclick = () => {
+    const newStock = parseInt(stockInput.value, 10);
+
+    if (!Number.isFinite(newStock) || newStock < 0) {
+      alert("재고는 0 이상의 숫자로 입력해주세요.");
+      return;
+    }
+
+    cardElement.dataset.stock = String(newStock);
+    const stockLabel = cardElement.querySelector(".stock");
+    if (stockLabel) stockLabel.innerText = newStock;
+    saveCards();
+    close();
+  };
+}
+
 function makeEditable(element, saveCallback, isNumber = false) {
   element.addEventListener("click", () => {
     const oldValue = element.innerText.trim();
