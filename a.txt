@@ -1,0 +1,259 @@
+# MyController.java
+package com.example.medicineReminder.controller;
+
+import com.example.medicineReminder.domain.PrincipalDetails;
+import com.example.medicineReminder.domain.AppUser;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+public class MyController {
+
+    @GetMapping("/my-info")
+    public String getMyInfo(@AuthenticationPrincipal PrincipalDetails principalDetails) {
+        // @AuthenticationPrincipal 어노테이션으로 세션에 저장된 PrincipalDetails 객체를 바로 주입받음
+
+        // 우리 서비스의 User 객체를 꺼내서 사용
+        AppUser user = principalDetails.getUser();
+
+        Long myInternalId = user.getId(); // 우리 DB의 user_id
+        String myNickname = user.getNickname();
+
+        return "내부 ID: " + myInternalId + ", 닉네임: " + myNickname;
+    }
+}
+---
+# SwaggerConfig.java
+package com.example.medicineReminder.config;
+
+import io.swagger.v3.oas.models.Components;
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.security.OAuthFlow;
+import io.swagger.v3.oas.models.security.OAuthFlows;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
+import io.swagger.v3.oas.models.security.SecurityScheme;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
+public class SwaggerConfig
+{
+    // application.yml/properties 파일에서 OAuth2 공급자의 정보를 가져옵니다.
+    @Value("${spring.security.oauth2.client.provider.kakao.authorization-uri}")
+    private String authorizationUri;
+
+    @Value("${spring.security.oauth2.client.provider.kakao.token-uri}")
+    private String tokenUri;
+
+    // 예시: provider-name은 google, kakao 등 application.yml에 설정한 값으로 변경해야 합니다.
+
+    @Bean
+    public OpenAPI openAPI()
+    {
+        Info info = new Info()
+                .title("내 애플리케이션 API")
+                .version("v1.0.0")
+                .description("API에 대한 설명입니다.");
+
+        String securitySchemeName = "OAuth 2.0";
+
+        SecurityRequirement securityRequirement = new SecurityRequirement().addList(securitySchemeName);
+
+        Components components = new Components()
+                .addSecuritySchemes(securitySchemeName, new SecurityScheme()
+                        .name(securitySchemeName)
+                        .type(SecurityScheme.Type.OAUTH2) // 타입을 OAUTH2로 변경
+                        .flows(new OAuthFlows()
+                                .authorizationCode(new OAuthFlow() // Authorization Code Grant Flow 사용
+                                                .authorizationUrl(authorizationUri) // 인증 URL
+                                                .tokenUrl(tokenUri) // 토큰 요청 URL
+                                        // 필요한 스코프를 여기에 추가
+                                        // .scopes(new Scopes().addString("read", "읽기 권한").addString("write", "쓰기 권한"))
+                                )
+                        )
+                );
+
+        return new OpenAPI()
+                .info(info)
+                .addSecurityItem(securityRequirement)
+                .components(components);
+
+    }
+}
+
+---
+
+# SecurityConfig.java
+package com.example.medicineReminder.config;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.web.SecurityFilterChain;
+import com.example.medicineReminder.service.CustomOAuth2UserService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.Arrays;
+
+import static org.springframework.security.config.Customizer.withDefaults;
+
+@Configuration
+@EnableWebSecurity
+@RequiredArgsConstructor
+public class SecurityConfig {
+
+    private final CustomOAuth2UserService customOAuth2UserService;
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http
+                // 1. 🚨 CORS 설정 활성화
+                .cors(Customizer.withDefaults())
+                // CSRF 비활성화 (API 서버의 일반적인 설정)
+                .csrf(AbstractHttpConfigurer::disable)
+
+                .authorizeHttpRequests(authorize -> authorize
+                        // Swagger UI 경로 접근 허용
+                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                        // 루트 경로와 로그인 경로는 모두 허용
+                        .requestMatchers("/", "/login").permitAll()
+                        .anyRequest().authenticated() // 그 외의 모든 요청은 인증 필요
+                )
+                .oauth2Login(oauth2 -> oauth2
+                        .userInfoEndpoint(userInfo -> userInfo
+                                // 로그인 성공 후 처리는 우리가 만든 customOAuth2UserService를 사용하라고 지정
+                                .userService(customOAuth2UserService)
+                        )
+                );
+
+        return http.build();
+    }
+
+    // 2. 🚨 CORS 구체적 설정 Bean 정의
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+
+        // 🔑 프론트엔드 주소(localhost:63342)를 허용 목록에 추가
+        configuration.setAllowedOrigins(Arrays.asList("http://localhost:63342"));
+
+        // 필요한 HTTP 메서드 허용
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+
+        // 인증 정보(세션, Authorization 헤더 등) 전송 허용
+        configuration.setAllowCredentials(true);
+
+        // 모든 헤더를 허용 (Authorization 헤더를 포함하기 위함)
+        configuration.setAllowedHeaders(Arrays.asList("*"));
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration); // 모든 API 경로에 CORS 규칙 적용
+        return source;
+    }
+}
+
+--- 
+
+# FirebaseConfig.java
+package com.example.medicineReminder.config;
+
+import com.google.auth.oauth2.GoogleCredentials;
+import com.google.firebase.FirebaseApp;
+import com.google.firebase.FirebaseOptions;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Configuration;
+
+import jakarta.annotation.PostConstruct;
+import java.io.ByteArrayInputStream;
+import java.io.FileInputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+
+@Configuration
+public class FirebaseConfig {
+
+    @Value("${reminder.fcm.enabled:true}")
+    private boolean enabled;
+
+    @Value("${reminder.fcm.useGoogleCredentialsPath:true}")
+    private boolean useGooglePath;
+
+    @Value("${reminder.fcm.jsonEnvKey:FIREBASE_CREDENTIALS_JSON}")
+    private String jsonEnvKey;
+
+    @PostConstruct
+    public void init() {
+        if (!enabled) return;
+        try {
+            if (FirebaseApp.getApps() != null && !FirebaseApp.getApps().isEmpty()) return;
+
+            FirebaseOptions options;
+            if (useGooglePath) {
+                // GOOGLE_APPLICATION_CREDENTIALS 환경변수 경로 사용
+                options = FirebaseOptions.builder()
+                        .setCredentials(GoogleCredentials.getApplicationDefault())
+                        .build();
+            } else {
+                // 서비스계정 JSON을 환경변수에 그대로 담아둔 경우
+                String json = System.getenv(jsonEnvKey);
+                if (json == null || json.isBlank()) throw new IllegalStateException("FCM JSON env not found: " + jsonEnvKey);
+                ByteArrayInputStream bais = new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8));
+                options = FirebaseOptions.builder()
+                        .setCredentials(GoogleCredentials.fromStream(bais))
+                        .build();
+            }
+            FirebaseApp.initializeApp(options);
+        } catch (Exception ignore) {
+            // 수업 범위: 초기화 실패 시에도 앱은 구동. 실제 발송은 실패로 기록됨.
+        }
+    }
+}
+
+# DbProbeRunner.java
+package com.example.medicineReminder.config;
+
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Component;
+
+@Component
+public class DbProbeRunner implements CommandLineRunner
+{
+    private final JdbcTemplate jdbc;
+
+    public DbProbeRunner(JdbcTemplate jdbc)
+    {
+        this.jdbc = jdbc;
+    }
+
+    @Override
+    public void run(String... args)
+    {
+        try
+        {
+            String db = jdbc.queryForObject("SELECT DATABASE()", String.class);
+            Integer users = jdbc.queryForObject("SELECT COUNT(*) FROM AppUsers", Integer.class);
+            Integer meds = jdbc.queryForObject("SELECT COUNT(*) FROM UserMedications", Integer.class);
+            Integer schedules = jdbc.queryForObject("SELECT COUNT(*) FROM IntakeSchedules", Integer.class);
+            System.out.println("[DB-PROBE] database=" + db +
+                    " users=" + users + " meds=" + meds + " schedules=" + schedules);
+        }
+        catch (Exception e)
+        {
+            System.out.println("[DB-PROBE] failed: " + e.getMessage());
+        }
+    }
+}
+
+
+
+

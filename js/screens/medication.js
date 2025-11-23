@@ -3,6 +3,7 @@
 // ----------------------------
 const grid = document.getElementById("medicationGrid");  // 약 카드들이 들어가는 그리드
 const addBtn = document.getElementById("addDrugBtn");    // 새 약 추가 버튼
+const hasMedicationUI = Boolean(grid && addBtn);
 const storageApi = window.MediStorage;
 
 // ----------------------------
@@ -44,6 +45,7 @@ function isTimeLate(scheduledTime, actualTime) {
 // 🔹 localStorage에서 카드 로드/저장
 // ==================================================
 function loadCards() {
+  if (!hasMedicationUI) return;
   const data = storageApi?.getMedicationCards?.() || JSON.parse(localStorage.getItem("medicationCards")) || [];
   data.forEach(card => createCard(card, false));
 
@@ -337,7 +339,9 @@ function showAddForm() {
   };
 }
 
-addBtn.addEventListener("click", showAddForm);
+if (hasMedicationUI) {
+  addBtn.addEventListener("click", showAddForm);
+}
 
 function showStockEditor(cardElement) {
   const wrapper = document.createElement("div");
@@ -418,4 +422,8 @@ function makeEditable(element, saveCallback, isNumber = false) {
 // ==================================================
 // 🔹 페이지 로드 시 카드 로드
 // ==================================================
-loadCards();
+if (hasMedicationUI) {
+  loadCards();
+} else {
+  console.debug("[medication] Medication UI not present, skipping card rendering.");
+}

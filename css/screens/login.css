@@ -137,7 +137,7 @@
     align-items: center;
 }
 
-#login_buttons__kakao__spanbox a{
+#kakaoLoginBtn{
     margin: 0;
     font-weight: 700;
     letter-spacing: 0.05em;
