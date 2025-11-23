@@ -30,7 +30,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // ---------------------------
   // 실제 서버로 테스트할 때 여기를 자신의 스프링 서버 주소로 교체
   // 예: const API_BASE_URL = "http://localhost:8080";
-  const API_BASE_URL = "http://localhost:8080";
+  // 운영 서버 주소(기본값) → 필요 시 window.__MC_API_BASE_URL__로 재정의 가능
+  const API_BASE_URL = window.__MC_API_BASE_URL__ || "http://202.31.246.29:8080";
 
   // ---------------------------
   // 로그 출력 헬퍼 (디버깅용)
@@ -52,7 +53,12 @@ document.addEventListener('DOMContentLoaded', () => {
   // - JSON 파싱 실패 시에도 예외를 피하고 null을 반환
   async function callLoginApi(path, options = {}) {
     try {
-      const { accessToken, headers: customHeaders, ...restOptions } = options;
+      const {
+        accessToken,
+        headers: customHeaders,
+        withCredentials = true,
+        ...restOptions
+      } = options;
       const headers = { ...(customHeaders || {}) };
       if (accessToken) {
         headers["Authorization"] = `Bearer ${accessToken}`;
@@ -62,8 +68,9 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       const response = await fetch(API_BASE_URL + path, {
-        ...restOptions,
-        headers
+        headers,
+        credentials: withCredentials ? 'include' : 'same-origin',
+        ...restOptions
       });
 
       if (!response.ok) {
