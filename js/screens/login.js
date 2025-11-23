@@ -1,14 +1,14 @@
 /**
  * 목적:
  * - 실제 카카오 OAuth 연동이 아닌 개발/테스트 편의를 위한 "모의 로그인" UI 및 흐름을 제공.
- * - 사용자가 '카카오 로그인' 버튼을 클릭하면 모달을 띄우고, mock/login_user.json의 시드 데이터를 읽어
- *   로컬스토리지(localStorage)에 사용자 정보를 넣고, 세션스토리지(sessionStorage)에 토스트 표시 플래그를 세팅한 뒤
- *   index.html로 리다이렉트한다.
+ * - 사용자가 '카카오 로그인' 버튼을 클릭하면 모달을 띄우고 Kakao OAuth 동의 흐름을 흉내낸 뒤
+ *   API_BASE_URL을 prefix로 하는 백엔드(/my-info)를 호출해 사용자 정보를 가져오고, 이를 로컬스토리지(localStorage)와
+ *   세션스토리지(sessionStorage)에 반영한 뒤 index.html로 리다이렉트한다.
  *
  * 주요 동작 요약:
  * 1. DOMContentLoaded 시 초기화: 페이지에서 카카오 로그인 앵커(#login_buttons__kakao__spanbox a) 또는
  *    로그인 박스(#login_buttons__kakao)를 찾아 클릭 핸들러 연결.
- * 2. 클릭 시 모달을 띄워 사용자 동의 흐름 시뮬레이션: '동의하고 계속'을 누르면 mock JSON을 불러와 사용자 선택 → 로그인 처리.
+ * 2. 클릭 시 모달을 띄워 사용자 동의 흐름 시뮬레이션: '동의하고 계속'을 누르면 /my-info를 호출해 현재 사용자 정보를 확보.
  * 3. 로그인 처리: localStorage.mc_user에 사용자 객체 저장, sessionStorage.mc_toast에 완료 토스트 플래그 저장,
  *    (있으면) window.updateHeaderLoginState() 호출, 그리고 index.html로 이동.
  *
@@ -23,6 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // - loginBox: 카카오 로그인 전체 박스(버튼 외 영역에 클릭 바인딩할 경우 사용)
   const kakaoAnchor = document.querySelector('#login_buttons__kakao__spanbox a');
   const loginBox = document.querySelector('#login_buttons__kakao');
+  const ACCESS_TOKEN_STORAGE_KEY = 'mc_access_token';
 
   // ---------------------------
   // API 설정 (선택적)
@@ -51,12 +52,18 @@ document.addEventListener('DOMContentLoaded', () => {
   // - JSON 파싱 실패 시에도 예외를 피하고 null을 반환
   async function callLoginApi(path, options = {}) {
     try {
+      const { accessToken, headers: customHeaders, ...restOptions } = options;
+      const headers = { ...(customHeaders || {}) };
+      if (accessToken) {
+        headers["Authorization"] = `Bearer ${accessToken}`;
+      }
+      if (!headers["Content-Type"] && restOptions.body) {
+        headers["Content-Type"] = "application/json";
+      }
+
       const response = await fetch(API_BASE_URL + path, {
-        headers: {
-          "Content-Type": "application/json",
-          ...(options.headers || {})
-        },
-        ...options
+        ...restOptions,
+        headers
       });
 
       if (!response.ok) {
@@ -79,15 +86,16 @@ document.addEventListener('DOMContentLoaded', () => {
   // ---------------------------
   // - 페이지에 accessToken 입력 필드(#accessToken)가 있으면 그 값을 Authorization 헤더로 사용
   // - 서버에서 현재 로그인된 사용자 정보를 반환하는 엔드포인트 테스트에 사용
-  async function callMyInfo() {
-    // optional: access token을 수동으로 입력해 테스트할 수 있도록 함
+  function resolveAccessToken() {
     const tokenInput = document.getElementById("accessToken");
-    const accessToken = tokenInput ? tokenInput.value.trim() : "";
+    const inlineToken = tokenInput ? tokenInput.value.trim() : "";
+    if (inlineToken) return inlineToken;
+    const stored = localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY);
+    return stored ? stored.trim() : "";
+  }
 
-    const headers = {};
-    if (accessToken) {
-      headers["Authorization"] = `Bearer ${accessToken}`;
-    }
+  async function callMyInfo() {
+    const accessToken = resolveAccessToken();
 
     appendLoginLog(
       `GET /my-info 호출 (Authorization 헤더: ${accessToken ? "Bearer {token}" : "없음"})`
@@ -95,7 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     await callLoginApi("/my-info", {
       method: "GET",
-      headers
+      accessToken
     });
   }
 
@@ -186,50 +194,45 @@ document.addEventListener('DOMContentLoaded', () => {
     // '동의하고 계속' 버튼 클릭 시 실행할 비동기 핸들러
     const onContinue = async () => {
       try {
-        // 1) mock/login_user.json 파일 로드
-        //    파일 구조 예시(예상)
-        //    {
-        //      "seedData": {
-        //         "AppUsers": [
-        //           { "user_id": "u1", "name": "홍길동", ... },
-        //           ...
-        //         ]
-        //      }
-        //    }
-        const res = await fetch('./mock/login_user.json', {
-          headers: {
-            Accept: 'application/json',
-          },
+        const accessToken = resolveAccessToken();
+        appendLoginLog(
+          `카카오 로그인 진행 - /my-info 요청 (Authorization: ${accessToken ? "포함" : "미포함"})`
+        );
+
+        // 인증이 성공하면 /my-info에서 { id, nickname } JSON을 받을 것으로 명세됨
+        const myInfo = await callLoginApi('/my-info', {
+          method: 'GET',
+          accessToken
         });
 
-        if (!res.ok) {
-          // 파일 로드에 실패하면 에러 처리
-          throw new Error('mock login_user.json load failed: ' + res.status);
+        if (!myInfo || typeof myInfo !== 'object') {
+          throw new Error('사용자 정보를 불러오지 못했습니다. /my-info 응답을 확인하세요.');
         }
 
-        const data = await res.json();
-
-        // 2) seedData에서 첫 번째 사용자(또는 필요시 다른 로직) 선택
-        let baseUser = null;
-        if (data.seedData && Array.isArray(data.seedData.AppUsers) && data.seedData.AppUsers.length) {
-          // 기본적으로 첫번째 사용자를 선택 (개발 편의)
-          baseUser = data.seedData.AppUsers[0];
+        if (myInfo.error) {
+          throw new Error(myInfo.error);
         }
 
-        // 3) 실제로 저장할 사용자 객체 구성
+        // 명세: 성공 시 { id, nickname } → 내부 사용자 객체 구성
         const user = {
-          ...(baseUser || {}),
-          loggedAt: Date.now(), // 로그인 시각
+          id: myInfo.id ?? `kakao-user-${Date.now()}`,
+          user_id: myInfo.id ?? null,
+          name: myInfo.nickname || '카카오 사용자',
+          nickname: myInfo.nickname || '',
+          provider: 'kakao',
+          loggedAt: Date.now(),
         };
 
-        // 콘솔에 상세 정보 출력(디버깅)
-        console.log('[LOGIN SUCCESS] user_id:', user.user_id, 'name:', user.name);
+        console.log('[LOGIN SUCCESS] kakao id:', user.user_id, 'nickname:', user.nickname);
         console.log('[LOGIN SUCCESS] full user object:', user);
 
         // 4) localStorage에 사용자 정보 저장 (키: mc_user)
         //    - 실제 서비스에서는 localStorage에 민감 정보를 저장하면 안 됨. 토큰은 HttpOnly 쿠키나 안전한 스토리지에.
         try {
           localStorage.setItem('mc_user', JSON.stringify(user));
+          if (accessToken) {
+            localStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, accessToken);
+          }
         } catch (err) {
           console.error('localStorage set error', err);
         }
@@ -253,7 +256,8 @@ document.addEventListener('DOMContentLoaded', () => {
       } catch (error) {
         // 실패 시 사용자에게 알리고 콘솔에 에러 출력
         console.error('[LOGIN ERROR]', error);
-        alert('로그인 정보를 불러오지 못했습니다. mock/login_user.json을 확인하세요.');
+        appendLoginLog(`로그인 실패: ${error.message || error}`);
+        alert('로그인에 실패했습니다. Access Token과 API 상태를 확인해주세요.');
       }
     };
 
