@@ -1,4 +1,3 @@
-<!-- Main Page -->
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -7,231 +6,419 @@
     <title>MediCheck</title>
     <link rel="icon" type="image/png" href="./asset/img/header_logo3.png">
     <link rel="stylesheet" href="./css/styles.css">
+    <style>
+        /* 모달 오버레이 (배경) */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-overlay.open {
+            display: flex; /* 활성화 시 보임 */
+        }
+        /* 모달 박스 */
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .modal-header h2 { margin: 0; font-size: 1.5rem; color: #333; }
+        .close-btn {
+            background: none; border: none; font-size: 1.5rem; cursor: pointer;
+        }
+        /* 폼 스타일 */
+        .form-group { margin-bottom: 15px; display: flex; flex-direction: column; }
+        .form-group label { font-weight: bold; margin-bottom: 5px; font-size: 0.9rem; color: #555; }
+        .form-control {
+            padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 1rem;
+        }
+        .days-container { display: flex; gap: 10px; flex-wrap: wrap; }
+        .day-label { display: flex; align-items: center; gap: 4px; font-weight: normal; font-size: 0.9rem; cursor: pointer; }
+        .time-inputs { display: flex; flex-direction: column; gap: 8px; }
+        .add-time-btn {
+            margin-top: 5px; padding: 5px 10px; background: #f0f0f0; border: 1px solid #ccc; border-radius: 4px; cursor: pointer;
+        }
+        .submit-btn {
+            width: 100%; padding: 12px; background-color: #007bff; color: white; border: none; border-radius: 6px; font-size: 1.1rem; cursor: pointer; margin-top: 10px;
+        }
+        .submit-btn:hover { background-color: #0056b3; }
+    </style>
 </head>
 <body>
-    <header class="header_bar">
-        <div class="header_bar__logobox">
-            <a href="./index.html">MediCheck</a>
-        </div>
-        <nav class="header_bar__nav" aria-label="주요 메뉴">
-            <a class="header_bar__nav__box is-active" href="./index.html">Home</a>
-            <a class="header_bar__nav__box" href="./medication.html">Medication management</a>
-            <a class="header_bar__nav__box" href="./weekly.html">Weekly report</a>
-            <a class="header_bar__nav__box" href="./notice.html">Notice</a>
-        </nav>
-        <div class="header_bar__useraction">
-            <p class="header_bar__date"><!-- 현재시각 --></p>
-            <button class="header_bar__notif" type="button">
-                <span>Notification</span>
-                <span class="header_bar__notif-dot" aria-hidden="true"></span>
-            </button>
-            <a class="header_bar__useraction__logintext" href="./login.html">logout</a>
-        </div>
-    </header>
+<header class="header_bar">
+    <div class="header_bar__logobox">
+        <a href="./index.html">MediCheck</a>
+    </div>
+    <nav class="header_bar__nav" aria-label="주요 메뉴">
+        <a class="header_bar__nav__box is-active" href="./index.html">Home</a>
+        <a class="header_bar__nav__box" href="./medication.html">Medication management</a>
+        <a class="header_bar__nav__box" href="./weekly.html">Weekly report</a>
+        <a class="header_bar__nav__box" href="./notice.html">Notice</a>
+    </nav>
+    <div class="header_bar__useraction">
+        <p class="header_bar__date"></p>
+        <button class="header_bar__notif" type="button">
+            <span>Notification</span>
+            <span class="header_bar__notif-dot" aria-hidden="true"></span>
+        </button>
+        <a class="header_bar__useraction__logintext" href="./login.html">logout</a>
+    </div>
+</header>
 
-    <div id="searchBar">
-        <form id="searchForm">
-            <input id="searchInput" type="text" placeholder="검색어를 입력하세요">
-            <button id="closeSearch" type="button">닫기</button>
+<div id="searchBar">
+    <form id="searchForm">
+        <input id="searchInput" type="text" placeholder="검색어를 입력하세요">
+        <button id="closeSearch" type="button">닫기</button>
+    </form>
+</div>
+
+<main id="main" class="dashboard">
+    <div class="dashboard__container">
+        <section class="dashboard__utility-row">
+            <article class="utility-card utility-card--search">
+                <form class="utility-card__form" role="search" action="#">
+                    <label class="sr-only" for="dashboardSearch">약품 검색</label>
+                    <i class="fa-solid fa-magnifying-glass utility-card__icon" aria-hidden="true"></i>
+                    <input id="dashboardSearch" type="search" placeholder="Search Here.." autocomplete="off">
+                    <button type="submit" aria-label="검색">
+                        <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
+                    </button>
+                </form>
+            </article>
+            <article class="utility-card utility-card--welcome" aria-live="polite">
+                <div>
+                    <p>홍길동 님,</p>
+                    <p>오늘의 복용 현황을 확인해보세요</p>
+                </div>
+                <span class="utility-card__status" aria-hidden="true"></span>
+            </article>
+        </section>
+
+        <section class="dashboard__hero">
+            <div class="hero__headline">
+                <p class="hero__eyebrow">MediCheck</p>
+                <h1 class="hero__title">약 복용을 한눈에 관리하세요</h1>
+                <p class="hero__description">총 복용해야 할 약 개수부터 복용 완료 여부까지, 하루 일정을 카드 하나에 담았습니다. 다음 복용 시간도 놓치지 않도록 알려드릴게요.</p>
+                <div class="hero__ctas">
+                    <button class="hero__cta hero__cta--primary" type="button">오늘의 일정 확인</button>
+                    <button id="openAddModalBtn" class="hero__cta hero__cta--ghost" type="button">복용 등록</button>
+                </div>
+                <figure class="hero__image">
+                    <img src="./asset/img/1.png" alt="MediCheck 일러스트" loading="lazy">
+                </figure>
+            </div>
+            <div class="hero__panel">
+                <p class="hero__panel-header"><span class="hero__panel-date">21 September, 2025</span><br>Medicine List</p>
+                <div class="today-meds" aria-live="polite">
+                </div>
+                <div class="hero-progress" aria-label="이번주 복용률">
+                    <div class="hero-progress__top">
+                        <span>이번주 복용률</span>
+                        <button class="hero-progress__link" type="button">월별 확인하기</button>
+                    </div>
+                    <div class="hero-progress__bar" role="progressbar" aria-valuenow="72" aria-valuemin="0" aria-valuemax="100">
+                        <span style="width: 72%"></span>
+                    </div>
+                    <p class="hero-progress__value">72% 완료</p>
+                </div>
+            </div>
+        </section>
+
+        <div class="dashboard__divider" aria-hidden="true"></div>
+
+        <section class="dashboard__calendar-row">
+            <article class="calendar-card" aria-label="달력">
+                <div class="calendar-card__header">
+                    <div>
+                        <p class="calendar-card__title">Calendar</p>
+                        <p class="calendar-card__subtitle">September 2025</p>
+                    </div>
+                    <div class="calendar-card__nav">
+                        <button type="button" aria-label="이전 달" data-calendar-nav="prev">&lt;</button>
+                        <button type="button" aria-label="다음 달" data-calendar-nav="next">&gt;</button>
+                    </div>
+                </div>
+                <div class="calendar-weekdays">
+                    <span>Sun</span>
+                    <span>Mon</span>
+                    <span>Tue</span>
+                    <span>Wed</span>
+                    <span>Thu</span>
+                    <span>Fri</span>
+                    <span>Sat</span>
+                </div>
+                <div class="calendar-days" aria-live="polite">
+                    <button type="button">1</button>
+                    <button type="button" class="is-today">2</button>
+                    <button type="button">3</button>
+                    <button type="button">4</button>
+                    <button type="button">5</button>
+                    <button type="button">6</button>
+                    <button type="button">7</button>
+                    <button type="button">8</button>
+                    <button type="button">9</button>
+                    <button type="button">10</button>
+                    <button type="button">11</button>
+                    <button type="button">12</button>
+                    <button type="button">13</button>
+                    <button type="button">14</button>
+                    <button type="button">15</button>
+                    <button type="button">16</button>
+                    <button type="button">17</button>
+                    <button type="button">18</button>
+                    <button type="button">19</button>
+                    <button type="button">20</button>
+                    <button type="button">21</button>
+                    <button type="button">22</button>
+                    <button type="button">23</button>
+                    <button type="button">24</button>
+                    <button type="button">25</button>
+                    <button type="button">26</button>
+                    <button type="button">27</button>
+                    <button type="button">28</button>
+                    <button type="button">29</button>
+                    <button type="button">30</button>
+                </div>
+            </article>
+            <article class="summary-card">
+                <h2 class="summary-card__title">오늘의 요약</h2>
+                <p class="summary-card__description">총 복용해야 할 약 개수 vs 완료 개수, 다음 복용 예정 시간/약 이름까지 정리해드렸어요.</p>
+                <div class="summary-card__stats">
+                    <div class="summary-card__stat">
+                        <span>총 복용</span>
+                        <strong class="total-dose-value">10정</strong>
+                    </div>
+                    <div class="summary-card__stat">
+                        <span>완료</span>
+                        <strong class="completed-dose-value">8정</strong>
+                    </div>
+                    <div class="summary-card__stat">
+                        <span>남은 약</span>
+                        <strong class="remaining-dose-value">2정</strong>
+                    </div>
+                </div>
+                <div class="summary-card__next">
+                    <span>다음 복용 예정</span>
+                    <p>락토핏 (유산균) · 13:00</p>
+                </div>
+            </article>
+        </section>
+
+        <div class="dashboard__divider" aria-hidden="true"></div>
+
+        <section class="dashboard__category-grid" aria-label="보관 중인 약 카테고리">
+            <article class="category-card">
+                <p class="category-card__title">처방약</p>
+                <ul>
+                    <li>한미 알마게이트 정 500mg</li>
+                </ul>
+                <button class="category-card__cta" type="button" aria-label="처방약 상세 보기">&gt;</button>
+            </article>
+            <article id="openAddModalCard" class="category-card category-card--add">
+                <button type="button" aria-label="새 약 카테고리 추가">+</button>
+            </article>
+        </section>
+
+        <div class="dashboard__divider" aria-hidden="true"></div>
+
+        <section class="dashboard__bubble-actions" aria-label="빠른 작업">
+            <button class="bubble-action bubble-action--primary" type="button">알림 보내기</button>
+            <button class="bubble-action bubble-action--neutral" type="button">주간 복용률</button>
+            <button class="bubble-action bubble-action--neutral" type="button">약 등록하기</button>
+            <button class="bubble-action bubble-action--neutral" type="button">리포트 확인</button>
+        </section>
+    </div>
+</main>
+
+<div id="addMedicineModal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>새 약 등록</h2>
+            <button id="closeModalBtn" class="close-btn">&times;</button>
+        </div>
+        <form id="medicineForm">
+            <div class="form-group">
+                <label for="medCategory">카테고리</label>
+                <input type="text" id="medCategory" class="form-control" placeholder="예: 영양제, 처방약" required>
+            </div>
+            <div class="form-group">
+                <label for="medName">약 이름</label>
+                <input type="text" id="medName" class="form-control" placeholder="예: 비타민C" required>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <div class="form-group" style="flex:1;">
+                    <label for="doseUnit">1회 복용량(정)</label>
+                    <input type="number" id="doseUnit" class="form-control" value="1" min="1" required>
+                </div>
+                <div class="form-group" style="flex:1;">
+                    <label for="totalQty">총 재고(정)</label>
+                    <input type="number" id="totalQty" class="form-control" value="30" min="1" required>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>복용 요일</label>
+                <div class="days-container">
+                    <label class="day-label"><input type="checkbox" name="days" value="월"> 월</label>
+                    <label class="day-label"><input type="checkbox" name="days" value="화"> 화</label>
+                    <label class="day-label"><input type="checkbox" name="days" value="수"> 수</label>
+                    <label class="day-label"><input type="checkbox" name="days" value="목"> 목</label>
+                    <label class="day-label"><input type="checkbox" name="days" value="금"> 금</label>
+                    <label class="day-label"><input type="checkbox" name="days" value="토"> 토</label>
+                    <label class="day-label"><input type="checkbox" name="days" value="일"> 일</label>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>복용 시간</label>
+                <div id="timeInputs" class="time-inputs">
+                    <input type="time" class="form-control time-entry" required>
+                </div>
+                <button type="button" class="add-time-btn" onclick="addTimeField()">+ 시간 추가</button>
+            </div>
+            <div class="form-group">
+                <label>복용 기간</label>
+                <div style="display:flex; gap:5px;">
+                    <input type="date" id="startDate" class="form-control" required>
+                    <span style="align-self:center;">~</span>
+                    <input type="date" id="endDate" class="form-control" required>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="medMemo">메모 (선택)</label>
+                <input type="text" id="medMemo" class="form-control" placeholder="예: 식후 30분">
+            </div>
+            <button type="submit" class="submit-btn">저장하기</button>
         </form>
     </div>
+</div>
 
-    <main id="main" class="dashboard">
-        <div class="dashboard__container">
-            <section class="dashboard__utility-row">
-                <article class="utility-card utility-card--search">
-                    <form class="utility-card__form" role="search" action="#">
-                        <label class="sr-only" for="dashboardSearch">약품 검색</label>
-                        <i class="fa-solid fa-magnifying-glass utility-card__icon" aria-hidden="true"></i>
-                        <input id="dashboardSearch" type="search" placeholder="Search Here.." autocomplete="off">
-                        <button type="submit" aria-label="검색">
-                            <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
-                        </button>
-                    </form>
-                </article>
-                <article class="utility-card utility-card--welcome" aria-live="polite">
-                    <div>
-                        <p>홍길동 님,</p>
-                        <p>오늘의 복용 현황을 확인해보세요</p>
-                    </div>
-                    <span class="utility-card__status" aria-hidden="true"></span>
-                </article>
-            </section>
+<script src="./js/utils/common.js"></script>
+<script src="./js/components/toast.js"></script>
+<script src="./js/components/header_bar.js"></script>
+<script src="./js/screens/medication.js"></script>
+<script src="./js/screens/mainpage.js"></script>
+<script src="./js/screens/login.js"></script>
+<script src="https://kit.fontawesome.com/4194a407b7.js" crossorigin="anonymous"></script>
 
-            <section class="dashboard__hero">
-                <div class="hero__headline">
-                    <p class="hero__eyebrow">MediCheck</p>
-                    <h1 class="hero__title">약 복용을 한눈에 관리하세요</h1>
-                    <p class="hero__description">총 복용해야 할 약 개수부터 복용 완료 여부까지, 하루 일정을 카드 하나에 담았습니다. 다음 복용 시간도 놓치지 않도록 알려드릴게요.</p>
-                    <div class="hero__ctas">
-                        <button class="hero__cta hero__cta--primary" type="button">오늘의 일정 확인</button>
-                        <button class="hero__cta hero__cta--ghost" type="button">복용 등록</button>
-                    </div>
-                    <figure class="hero__image">
-                        <img src="./asset/img/1.png" alt="MediCheck 일러스트" loading="lazy">
-                    </figure>
-                </div>
-                <div class="hero__panel">
-                    <p class="hero__panel-header"><span class="hero__panel-date">21 September, 2025</span><br>Medicine List</p>
-                    <div class="today-meds" aria-live="polite">
-                        
-                    </div>
-                    <div class="hero-progress" aria-label="이번주 복용률">
-                        <div class="hero-progress__top">
-                            <span>이번주 복용률</span>
-                            <button class="hero-progress__link" type="button">월별 확인하기</button>
-                        </div>
-                        <div class="hero-progress__bar" role="progressbar" aria-valuenow="72" aria-valuemin="0" aria-valuemax="100">
-                            <span style="width: 72%"></span>
-                        </div>
-                        <p class="hero-progress__value">72% 완료</p>
-                    </div>
-                </div>
-            </section>
+<script>
+    // 공통 변수 (common.js에 선언되어 있다고 가정. 만약 없다면 기본값 사용)
+    const BASE_URL = (typeof API_BASE_URL !== 'undefined') ? API_BASE_URL : 'http://localhost:8080';
 
-            <div class="dashboard__divider" aria-hidden="true"></div>
+    // 요소 선택
+    const modal = document.getElementById('addMedicineModal');
+    const openBtn = document.getElementById('openAddModalBtn');
+    const openCard = document.getElementById('openAddModalCard');
+    const closeBtn = document.getElementById('closeModalBtn');
+    const form = document.getElementById('medicineForm');
+    const timeContainer = document.getElementById('timeInputs');
 
-            <section class="dashboard__calendar-row">
-                <article class="calendar-card" aria-label="달력">
-                    <div class="calendar-card__header">
-                        <div>
-                            <p class="calendar-card__title">Calendar</p>
-                            <p class="calendar-card__subtitle">September 2025</p>
-                        </div>
-                        <div class="calendar-card__nav">
-                            <button type="button" aria-label="이전 달" data-calendar-nav="prev">&lt;</button>
-                            <button type="button" aria-label="다음 달" data-calendar-nav="next">&gt;</button>
-                        </div>
-                    </div>
-                    <div class="calendar-weekdays">
-                        <span>Sun</span>
-                        <span>Mon</span>
-                        <span>Tue</span>
-                        <span>Wed</span>
-                        <span>Thu</span>
-                        <span>Fri</span>
-                        <span>Sat</span>
-                    </div>
-                    <div class="calendar-days" aria-live="polite">
-                        <button type="button">1</button>
-                        <button type="button" class="is-today">2</button>
-                        <button type="button">3</button>
-                        <button type="button">4</button>
-                        <button type="button">5</button>
-                        <button type="button">6</button>
-                        <button type="button">7</button>
-                        <button type="button">8</button>
-                        <button type="button">9</button>
-                        <button type="button">10</button>
-                        <button type="button">11</button>
-                        <button type="button">12</button>
-                        <button type="button">13</button>
-                        <button type="button">14</button>
-                        <button type="button">15</button>
-                        <button type="button">16</button>
-                        <button type="button">17</button>
-                        <button type="button">18</button>
-                        <button type="button">19</button>
-                        <button type="button">20</button>
-                        <button type="button">21</button>
-                        <button type="button">22</button>
-                        <button type="button">23</button>
-                        <button type="button">24</button>
-                        <button type="button">25</button>
-                        <button type="button">26</button>
-                        <button type="button">27</button>
-                        <button type="button">28</button>
-                        <button type="button">29</button>
-                        <button type="button">30</button>
-                    </div>
-                </article>
-                <article class="summary-card">
-                    <h2 class="summary-card__title">오늘의 요약</h2>
-                    <p class="summary-card__description">총 복용해야 할 약 개수 vs 완료 개수, 다음 복용 예정 시간/약 이름까지 정리해드렸어요.</p>
-                    <div class="summary-card__stats">
-                        <div class="summary-card__stat">
-                            <span>총 복용</span>
-                            <strong class="total-dose-value">10정</strong>
-                        </div>
-                        <div class="summary-card__stat">
-                            <span>완료</span>
-                            <strong class="completed-dose-value">8정</strong>
-                        </div>
-                        <div class="summary-card__stat">
-                            <span>남은 약</span>
-                            <strong class="remaining-dose-value">2정</strong>
-                        </div>
-                    </div>
-                    <div class="summary-card__next">
-                        <span>다음 복용 예정</span>
-                        <p>락토핏 (유산균) · 13:00</p>
-                    </div>
-                </article>
-            </section>
+    // 모달 열기
+    function openModal() {
+        modal.classList.add('open');
+        // 날짜 기본값 세팅 (오늘, 올해 말)
+        const today = new Date().toISOString().split('T')[0];
+        const endYear = new Date(new Date().getFullYear(), 11, 31).toISOString().split('T')[0];
+        if(!document.getElementById('startDate').value) document.getElementById('startDate').value = today;
+        if(!document.getElementById('endDate').value) document.getElementById('endDate').value = endYear;
+    }
 
-            <div class="dashboard__divider" aria-hidden="true"></div>
+    // 모달 닫기
+    function closeModal() {
+        modal.classList.remove('open');
+        form.reset();
+        // 시간 입력 초기화 (1개만 남김)
+        timeContainer.innerHTML = '<input type="time" class="form-control time-entry" required>';
+    }
 
-            <section class="dashboard__category-grid" aria-label="보관 중인 약 카테고리">
-                <article class="category-card">
-                    <p class="category-card__title">처방약</p>
-                    <ul>
-                        <li>한미 알마게이트 정 500mg</li>
-                        <li>한미 파모티딘 정 20mg</li>
-                        <li>모사메드 정 5mg</li>
-                        <li>스파로드 정</li>
-                    </ul>
-                    <button class="category-card__cta" type="button" aria-label="처방약 상세 보기">&gt;</button>
-                </article>
-                <article class="category-card">
-                    <p class="category-card__title">유산균</p>
-                    <ul>
-                        <li>락토핏</li>
-                    </ul>
-                    <button class="category-card__cta" type="button" aria-label="유산균 상세 보기">&gt;</button>
-                </article>
-                <article class="category-card">
-                    <p class="category-card__title">간 영양제</p>
-                    <ul>
-                        <li>밀크씨슬</li>
-                    </ul>
-                    <button class="category-card__cta" type="button" aria-label="간 영양제 상세 보기">&gt;</button>
-                </article>
-                <article class="category-card">
-                    <p class="category-card__title">멀티 비타민</p>
-                    <ul>
-                        <li>센트룸 우먼</li>
-                    </ul>
-                    <button class="category-card__cta" type="button" aria-label="멀티 비타민 상세 보기">&gt;</button>
-                </article>
-                <article class="category-card">
-                    <p class="category-card__title">오메가 3</p>
-                    <ul>
-                        <li>고려은단</li>
-                    </ul>
-                    <button class="category-card__cta" type="button" aria-label="오메가3 상세 보기">&gt;</button>
-                </article>
-                <article class="category-card category-card--add">
-                    <button type="button" aria-label="새 약 카테고리 추가">+</button>
-                </article>
-            </section>
+    // 이벤트 리스너 연결 (null 체크 포함)
+    if(openBtn) openBtn.addEventListener('click', openModal);
+    if(openCard) openCard.addEventListener('click', openModal);
+    if(closeBtn) closeBtn.addEventListener('click', closeModal);
 
-            <div class="dashboard__divider" aria-hidden="true"></div>
+    // 시간 입력 필드 추가 함수
+    window.addTimeField = function() {
+        const input = document.createElement('input');
+        input.type = 'time';
+        input.className = 'form-control time-entry';
+        input.required = true;
+        timeContainer.appendChild(input);
+    };
 
-            <section class="dashboard__bubble-actions" aria-label="빠른 작업">
-                <button class="bubble-action bubble-action--primary" type="button">알림 보내기</button>
-                <button class="bubble-action bubble-action--neutral" type="button">주간 복용률</button>
-                <button class="bubble-action bubble-action--neutral" type="button">약 등록하기</button>
-                <button class="bubble-action bubble-action--neutral" type="button">리포트 확인</button>
-            </section>
-        </div>
-    </main>
+    // 폼 제출 (API 연동)
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
 
-    <script src="./js/utils/common.js"></script>
-    <script src="./js/components/toast.js"></script>
-    <script src="./js/components/header_bar.js"></script>
-    <script src="./js/screens/medication.js"></script>
-    <script src="./js/screens/mainpage.js"></script>
-    <script src="./js/screens/login.js"></script>
-    <script src="https://kit.fontawesome.com/4194a407b7.js" crossorigin="anonymous"></script>
+        // 1. 데이터 수집
+        const category = document.getElementById('medCategory').value;
+        const name = document.getElementById('medName').value;
+        const doseUnitQuantity = parseInt(document.getElementById('doseUnit').value);
+        const initialQuantity = parseInt(document.getElementById('totalQty').value);
+        const memo = document.getElementById('medMemo').value;
+        const startDate = document.getElementById('startDate').value;
+        const endDate = document.getElementById('endDate').value;
+
+        // 2. 시간 배열 -> 문자열 변환 (예: "09:00,18:00")
+        const timeEntries = document.querySelectorAll('.time-entry');
+        const times = Array.from(timeEntries).map(input => input.value).filter(val => val).join(',');
+
+        // 3. 요일 배열 -> 문자열 변환 (예: "월,수,금")
+        const dayCheckboxes = document.querySelectorAll('input[name="days"]:checked');
+        const days = Array.from(dayCheckboxes).map(cb => cb.value).join(',');
+
+        // 유효성 검사
+        if (!times) { alert('복용 시간을 최소 1개 입력해주세요.'); return; }
+        if (!days) { alert('복용 요일을 최소 1개 선택해주세요.'); return; }
+
+        // 4. API 요청 Payload 구성
+        const payload = {
+            category,
+            name,
+            doseUnitQuantity,
+            initialQuantity,
+            memo,
+            times,
+            days,
+            startDate,
+            endDate
+        };
+
+        try {
+            // [핵심] API_BASE_URL을 사용하여 요청 주소 완성
+            const response = await fetch(`${BASE_URL}/api/mediinfo/medicines`, {                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (response.ok) {
+                alert('약이 성공적으로 등록되었습니다.');
+                closeModal();
+                window.location.reload(); // 화면 새로고침하여 목록 갱신
+            } else {
+                const errorData = await response.json();
+                alert('등록 실패: ' + (errorData.message || '알 수 없는 오류'));
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('서버 통신 중 오류가 발생했습니다. (서버가 켜져 있는지 확인해주세요)');
+        }
+    });
+</script>
 </body>
 </html>
