@@ -1,7 +1,8 @@
 (() => {
-    const API_BASE_URL = "http://202.31.246.29:8080";  // 백엔드
-    const MY_INFO_ENDPOINT = "${API_BASE_URL}/my-info";
+    const API_BASE_URL = "http://localhost:8080";  // 백엔드
+    const MY_INFO_ENDPOINT = `${API_BASE_URL}/my-info`;
     const STORAGE_USER_KEY = "mc_user";
+    const STORAGE_TOKEN_KEY = "mc_token";
 
     console.log("✅ login.js 로드됨");
 
@@ -10,7 +11,14 @@
 
         initAuthTabs();
         bindKakaoLoginButton();
-        requestMyInfo(); // 페이지 열릴 때 자동 로그인 상태 확인
+
+        // 🔥 JWT가 있는 경우만 자동 로그인 시도
+        const token = localStorage.getItem(STORAGE_TOKEN_KEY);
+        if (token) {
+            requestMyInfo();
+        } else {
+            updateLoginUI(false);
+        }
     });
 
     // ----------------------------------------------------
@@ -46,27 +54,36 @@
             e.preventDefault();
             console.log("▶️ 카카오 로그인 시작");
 
+            // 🔥 redirect_uri 로 백엔드가 JWT를 전달하도록 구성해야 함
             window.location.href = `${API_BASE_URL}/oauth2/authorization/kakao`;
         });
     }
 
     // ----------------------------------------------------
-    // 3) 세션 기반 사용자 정보 확인(/my-info)
+    // 3) JWT 기반 사용자 정보 확인(/my-info)
     // ----------------------------------------------------
     async function requestMyInfo() {
+        const token = localStorage.getItem(STORAGE_TOKEN_KEY);
+        if (!token) {
+            console.warn("❌ JWT 없음 → 로그인 필요");
+            updateLoginUI(false);
+            return;
+        }
+
         console.log(`📡 GET ${MY_INFO_ENDPOINT}`);
 
         try {
             const response = await fetch(MY_INFO_ENDPOINT, {
                 method: "GET",
-                credentials: "include",  // ⭐ 세션 쿠키 필요
                 headers: {
-                    "Accept": "application/json"
+                    "Accept": "application/json",
+                    "Authorization": `Bearer ${token}`   // ⭐ JWT 인증 방식
                 }
             });
 
             if (response.status === 401) {
-                console.log("❌ 로그인 안됨 (401)");
+                console.log("❌ JWT 만료됨 or 유효하지 않음");
+                localStorage.removeItem(STORAGE_TOKEN_KEY);
                 updateLoginUI(false);
                 return;
             }

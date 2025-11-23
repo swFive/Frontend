@@ -157,5 +157,30 @@
     <script src="./js/components/header_bar.js"></script>
     <script src="./js/screens/login.js" defer></script>
     <script src="https://kit.fontawesome.com/4194a407b7.js" crossorigin="anonymous"></script>
+    <script>
+        // URL에서 token=... 읽기
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get("token");
+
+        if (token) {
+            console.log("🔐 JWT 토큰 감지됨:", token);
+
+            // JWT 저장
+            localStorage.setItem("mc_token", token);
+
+            // 로그인 완료 UI 표시
+            const feedback = document.getElementById("authFeedback");
+            if (feedback) {
+                feedback.textContent = "로그인되었습니다.";
+                feedback.dataset.state = "success";
+            }
+
+            // URL에서 token 제거 (보안상 좋음)
+            window.history.replaceState({}, document.title, window.location.pathname);
+
+            // 필요하면 자동 redirect 가능
+            // window.location.href = "./index.html";
+        }
+    </script>
 </body>
 </html>
