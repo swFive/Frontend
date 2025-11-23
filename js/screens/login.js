@@ -1,11 +1,13 @@
 (() => {
-    const API_BASE_URL = "http://localhost:8080";  // 백엔드
+    const API_BASE_URL = "http://localhost:8080";
     const MY_INFO_ENDPOINT = `${API_BASE_URL}/my-info`;
     const STORAGE_USER_KEY = "mc_user";
     const STORAGE_TOKEN_KEY = "mc_token";
-    const LOGIN_POST_DELAY_MS = 3000;
 
+    // ▼▼▼ [누락되었던 부분 추가] ▼▼▼
+    const LOGIN_POST_DELAY_MS = 1000;
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
     console.log("✅ login.js 로드됨");
 
@@ -15,11 +17,26 @@
         initAuthTabs();
         bindKakaoLoginButton();
 
-        // 🔥 JWT가 있는 경우만 자동 로그인 시도
+        // 1. URL에서 토큰 낚아채기
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlToken = urlParams.get('token');
+
+        if (urlToken) {
+            console.log("🔥 주소창에서 토큰 발견! 저장합니다:", urlToken);
+            localStorage.setItem(STORAGE_TOKEN_KEY, urlToken);
+
+            // 주소창 청소
+            const cleanUrl = window.location.pathname;
+            window.history.replaceState({}, document.title, cleanUrl);
+        }
+
+        // 2. 토큰이 있으면 로그인 시도
         const token = localStorage.getItem(STORAGE_TOKEN_KEY);
         if (token) {
+            console.log("🔑 저장된 토큰으로 내 정보 요청 시작...");
             requestMyInfo();
         } else {
+            console.log("💤 토큰 없음. 로그인 필요.");
             updateLoginUI(false);
         }
     });
@@ -44,104 +61,93 @@
     }
 
     // ----------------------------------------------------
-    // 2) 카카오 로그인 버튼 → 백엔드 OAuth2 로그인 시작
+    // 2) 카카오 로그인 버튼
     // ----------------------------------------------------
     function bindKakaoLoginButton() {
-        const kakaoBtn = document.getElementById("kakaoLoginBtn");
+        const kakaoBtn = document.getElementById("login_buttons__kakao__spanbox");
         if (!kakaoBtn) {
-            console.warn("⚠ kakaoLoginBtn 요소를 찾지 못함");
+            // console.warn("⚠ kakaoLoginBtn 없음 (로그인 페이지가 아닐 수 있음)");
             return;
         }
 
         kakaoBtn.addEventListener("click", (e) => {
             e.preventDefault();
             console.log("▶️ 카카오 로그인 시작");
-
-            // 🔥 redirect_uri 로 백엔드가 JWT를 전달하도록 구성해야 함
             window.location.href = `${API_BASE_URL}/oauth2/authorization/kakao`;
         });
     }
 
     // ----------------------------------------------------
-    // 3) JWT 기반 사용자 정보 확인(/my-info)
+    // 3) 내 정보 요청 (/my-info)
     // ----------------------------------------------------
     async function requestMyInfo() {
         const token = localStorage.getItem(STORAGE_TOKEN_KEY);
-        if (!token) {
-            console.warn("❌ JWT 없음 → 로그인 필요");
-            updateLoginUI(false);
-            return;
-        }
-
-        console.log(`📡 GET ${MY_INFO_ENDPOINT}`);
+        if (!token) return;
 
         try {
             const response = await fetch(MY_INFO_ENDPOINT, {
                 method: "GET",
                 headers: {
-                    "Accept": "application/json",
-                    "Authorization": `Bearer ${token}`   // ⭐ JWT 인증 방식
+                    "Accept": "application/json", // JSON 응답 요청
+                    "Authorization": `Bearer ${token}`
                 }
             });
 
             if (response.status === 401) {
-                console.log("❌ JWT 만료됨 or 유효하지 않음");
+                console.log("❌ 토큰 만료됨");
                 localStorage.removeItem(STORAGE_TOKEN_KEY);
                 updateLoginUI(false);
                 return;
             }
 
             if (!response.ok) {
-                console.warn("❌ /my-info 에러:", response.status);
-                updateLoginUI(false);
+                console.warn("❌ 서버 응답 에러:", response.status);
                 return;
             }
 
+            // ⭐ 백엔드가 JSON을 반환하도록 MyController를 수정했는지 확인 필수!
             const data = await response.json();
-            console.log("✅ /my-info 응답:", data);
+            console.log("✅ 내 정보 수신 완료:", data);
 
-            // 백엔드가 사용자 데이터를 반영할 시간을 주기 위해 잠시 대기
+            // 여기서 sleep 함수가 필요했습니다!
             await sleep(LOGIN_POST_DELAY_MS);
 
             const user = {
                 id: data.id,
-                name: data.name || data.nickname || "사용자",
-                nickname: data.nickname || null,
-                raw: data
+                nickname: data.nickname || data.name || "사용자",
             };
 
             localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(user));
             updateLoginUI(true, user);
-            console.log(user);
 
         } catch (err) {
-            console.error("❌ /my-info fetch 오류:", err);
+            console.error("❌ requestMyInfo 실행 중 오류:", err);
         }
     }
 
+    // sleep(1000);
+
     // ----------------------------------------------------
-    // 4) 로그인 UI 갱신
+    // 4) UI 업데이트
     // ----------------------------------------------------
     function updateLoginUI(isLoggedIn, user = null) {
         const el = document.getElementById("authFeedback");
-        if (!el) return;
-
-        if (!isLoggedIn) {
-            el.textContent = "로그인이 필요합니다.";
-            el.dataset.state = "warning";
-            try { localStorage.removeItem(STORAGE_USER_KEY); } catch {}
-            if (typeof window.updateHeaderLoginState === "function") {
-                window.updateHeaderLoginState();
-            }
+        
+        // authFeedback 요소가 없는 페이지일 수도 있으므로 체크
+        if (!el) {
+            // console.log("ℹ️ authFeedback 요소를 찾을 수 없음 (헤더 등 확인 필요)");
             return;
         }
 
-        el.textContent = `${user.nickname || user.name}님, 로그인되었습니다.`;
-        el.dataset.state = "success";
-
-        if (typeof window.updateHeaderLoginState === "function") {
-            window.updateHeaderLoginState();
+        if (!isLoggedIn) {
+            el.textContent = "로그인이 필요합니다.";
+            // el.dataset.state = "warning";
+            // CSS에 따라 data attribute 사용 여부 결정
+            return;
         }
-    }
 
+        el.textContent = `${user.nickname}님, 환영합니다!`;
+        // el.dataset.state = "success";
+        console.log("🎉 UI 로그인 상태로 변경됨");
+    }
 })();

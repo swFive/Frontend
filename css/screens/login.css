@@ -1,357 +1,425 @@
 .page-login{
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    background: linear-gradient(135deg, #ffffff 0%, var(--topbar, #C6DEFD) 70%, rgba(198, 222, 253, 0.8) 100%);
+min-height: 100vh;
+display: flex;
+flex-direction: column;
+background: linear-gradient(135deg, #ffffff 0%, var(--topbar, #C6DEFD) 70%, rgba(198, 222, 253, 0.8) 100%);
 }
 
 .login-layout{
-    flex: 1 1 auto;
-    width: min(1180px, 100%);
-    margin: 0 auto;
-    padding: clamp(32px, 8vw, 72px) clamp(20px, 6vw, 40px) 80px;
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: clamp(32px, 5vw, 64px);
-    align-items: center;
-    box-sizing: border-box;
+flex: 1 1 auto;
+width: min(1180px, 100%);
+margin: 0 auto;
+padding: clamp(32px, 8vw, 72px) clamp(20px, 6vw, 40px) 80px;
+display: grid;
+grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+gap: clamp(32px, 5vw, 64px);
+align-items: center;
+box-sizing: border-box;
 }
 
 .login-hero{
-    display: flex;
-    flex-direction: column;
-    gap: 18px;
-    color: #24314f;
+display: flex;
+flex-direction: column;
+gap: 18px;
+color: #24314f;
 }
 
 .login-hero__eyebrow{
-    font-size: 15px;
-    font-weight: 700;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: #1a3c7d;
-    margin: 0;
+font-size: 15px;
+font-weight: 700;
+letter-spacing: 0.18em;
+text-transform: uppercase;
+color: #1a3c7d;
+margin: 0;
 }
 
 .login-hero h1{
-    font-size: clamp(28px, 4vw, 42px);
-    margin: 0;
-    color: #121b32;
+font-size: clamp(28px, 4vw, 42px);
+margin: 0;
+color: #121b32;
 }
 
 .login-hero__description{
-    margin: 0;
-    line-height: 1.7;
-    color: #2a3758;
+margin: 0;
+line-height: 1.7;
+color: #2a3758;
 }
 
 .login-hero__features{
-    list-style: none;
-    padding: 0;
-    margin: 8px 0 0;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    font-weight: 600;
-    color: #1f2d4c;
+list-style: none;
+padding: 0;
+margin: 8px 0 0;
+display: flex;
+flex-direction: column;
+gap: 12px;
+font-weight: 600;
+color: #1f2d4c;
 }
 
 .login-hero__icon{
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 22px;
-    height: 22px;
-    margin-right: 10px;
-    border-radius: 50%;
-    background: rgba(198, 222, 253, 0.6);
-    color: #1a3c7d;
-    font-size: 12px;
-    font-weight: 700;
+display: inline-flex;
+align-items: center;
+justify-content: center;
+width: 22px;
+height: 22px;
+margin-right: 10px;
+border-radius: 50%;
+background: rgba(198, 222, 253, 0.6);
+color: #1a3c7d;
+font-size: 12px;
+font-weight: 700;
 }
 
 .login-card{
-    background: rgba(255, 255, 255, 0.9);
-    border-radius: 28px;
-    padding: clamp(24px, 6vw, 40px);
-    box-shadow: 0 20px 50px rgba(16, 42, 96, 0.15);
-    border: 1px solid rgba(198, 222, 253, 0.8);
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
+background: rgba(255, 255, 255, 0.9);
+border-radius: 28px;
+padding: clamp(24px, 6vw, 40px);
+box-shadow: 0 20px 50px rgba(16, 42, 96, 0.15);
+border: 1px solid rgba(198, 222, 253, 0.8);
+display: flex;
+flex-direction: column;
+gap: 20px;
 }
 
 .login-card__header h2{
-    margin: 6px 0 12px;
-    font-size: clamp(22px, 3vw, 30px);
-    color: #1a2a4d;
+margin: 6px 0 12px;
+font-size: clamp(22px, 3vw, 30px);
+color: #1a2a4d;
 }
 
 .login-card__header p{
-    margin: 0;
-    color: #43516f;
+margin: 0;
+color: #43516f;
 }
 
 .login-card__eyebrow{
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 0.3em;
-    text-transform: uppercase;
-    color: #1e3d74;
-    margin: 0;
+font-size: 12px;
+font-weight: 700;
+letter-spacing: 0.3em;
+text-transform: uppercase;
+color: #1e3d74;
+margin: 0;
 }
 
 .page-login #login_buttons{
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    align-items: stretch;
+display: flex;
+flex-direction: column;
+gap: 12px;
+align-items: stretch;
 }
 
 #login_buttons__kakao{
-    background-color: #fae100;
-    width: 100%;
-    min-height: 54px;
-    border:1px solid rgba(0, 0, 0, 0.2);
-    border-radius: 999px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 14px;
+background-color: #fae100;
+width: 100%;
+min-height: 54px;
+border:1px solid rgba(0, 0, 0, 0.2);
+border-radius: 999px;
+display: flex;
+align-items: center;
+justify-content: center;
+gap: 14px;
 
-    box-shadow: 0 15px 30px rgba(191, 146, 0, 0.25);
+box-shadow: 0 15px 30px rgba(191, 146, 0, 0.25);
 }
 
 #login_buttons__kakao__ibox{
-    height: 100%;
-    min-width: 24px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+height: 100%;
+min-width: 24px;
+display: flex;
+justify-content: center;
+align-items: center;
 }
 
 #login_buttons__kakao__spanbox{
-    height: 100%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+height: 100%;
+display: flex;
+justify-content: center;
+align-items: center;
 }
 
 #kakaoLoginBtn{
-    margin: 0;
-    font-weight: 700;
-    letter-spacing: 0.05em;
-    color: #3b2d03;
-    text-decoration: none;
-    text-align: center;
+margin: 0;
+font-weight: 700;
+letter-spacing: 0.05em;
+color: #3b2d03;
+text-decoration: none;
+text-align: center;
 }
 
 #login_buttons__mk{
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    width: 100%;
-    min-height: 44px;
-    border-radius: 999px;
-    background: rgba(198, 222, 253, 0.35);
-    border: 1px dashed rgba(26, 60, 125, 0.35);
-    color: #1e3d74;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    text-decoration: none;
+display: flex;
+justify-content: center;
+align-items: center;
+width: 100%;
+min-height: 44px;
+border-radius: 999px;
+background: rgba(198, 222, 253, 0.35);
+border: 1px dashed rgba(26, 60, 125, 0.35);
+color: #1e3d74;
+font-weight: 600;
+letter-spacing: 0.08em;
+text-transform: uppercase;
+text-decoration: none;
 }
 
 .login-card__help{
-    background: rgba(198, 222, 253, 0.3);
-    border-radius: 18px;
-    padding: 14px 16px;
-    color: #233455;
-    font-size: 14px;
+background: rgba(198, 222, 253, 0.3);
+border-radius: 18px;
+padding: 14px 16px;
+color: #233455;
+font-size: 14px;
 }
 
 .login-card__link{
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    margin-top: 6px;
-    color: #1e3d74;
-    font-weight: 700;
-    text-decoration: underline;
+display: inline-flex;
+align-items: center;
+gap: 6px;
+margin-top: 6px;
+color: #1e3d74;
+font-weight: 700;
+text-decoration: underline;
 }
 
 .auth-module{
-    margin-top: 8px;
-    border: 1px solid rgba(30,61,116,0.08);
-    border-radius: 20px;
-    padding: 20px;
-    background: #f7fbff;
-    display: flex;
-    flex-direction: column;
-    gap: 18px;
+margin-top: 8px;
+border: 1px solid rgba(30,61,116,0.08);
+border-radius: 20px;
+padding: 20px;
+background: #f7fbff;
+display: flex;
+flex-direction: column;
+gap: 18px;
 }
 
 .auth-tabs{
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-    background: #eef4ff;
-    border-radius: 14px;
-    padding: 6px;
+display: grid;
+grid-template-columns: repeat(2, minmax(0, 1fr));
+gap: 8px;
+background: #eef4ff;
+border-radius: 14px;
+padding: 6px;
 }
 
 .auth-tab{
-    border: none;
-    border-radius: 10px;
-    padding: 10px 12px;
-    font-weight: 600;
-    background: transparent;
-    color: #5a6ea3;
-    cursor: pointer;
-    transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+border: none;
+border-radius: 10px;
+padding: 10px 12px;
+font-weight: 600;
+background: transparent;
+color: #5a6ea3;
+cursor: pointer;
+transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .auth-tab.is-active{
-    background: #fff;
-    color: #142044;
-    box-shadow: 0 6px 18px rgba(27, 60, 125, 0.18);
+background: #fff;
+color: #142044;
+box-shadow: 0 6px 18px rgba(27, 60, 125, 0.18);
 }
 
 .auth-form{
-    display: none;
-    flex-direction: column;
-    gap: 14px;
+display: none;
+flex-direction: column;
+gap: 14px;
 }
 
 .auth-form.is-active{
-    display: flex;
+display: flex;
 }
 
 .auth-field{
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    font-size: 13px;
-    color: #1d2a44;
+display: flex;
+flex-direction: column;
+gap: 6px;
+font-size: 13px;
+color: #1d2a44;
 }
 
 .auth-field input{
-    border-radius: 12px;
-    border: 1px solid rgba(22, 49, 98, 0.18);
-    padding: 12px 14px;
-    font-size: 15px;
-    background: #fff;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+border-radius: 12px;
+border: 1px solid rgba(22, 49, 98, 0.18);
+padding: 12px 14px;
+font-size: 15px;
+background: #fff;
+transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .auth-field input.has-error{
-    border-color: #d8345f;
-    background: #fff5f6;
+border-color: #d8345f;
+background: #fff5f6;
 }
 
 .auth-field input:focus{
-    border-color: #5880ff;
-    box-shadow: 0 0 0 3px rgba(88,128,255,0.15);
-    outline: none;
+border-color: #5880ff;
+box-shadow: 0 0 0 3px rgba(88,128,255,0.15);
+outline: none;
 }
 
 .auth-field__error{
-    min-height: 16px;
-    font-size: 12px;
-    color: #d8345f;
+min-height: 16px;
+font-size: 12px;
+color: #d8345f;
 }
 
 .auth-inline-actions{
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    font-size: 13px;
+display: flex;
+align-items: center;
+justify-content: space-between;
+font-size: 13px;
 }
 
 .auth-checkbox{
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    color: #2d3c5f;
+display: flex;
+align-items: center;
+gap: 6px;
+color: #2d3c5f;
 }
 
 .auth-link{
-    color: #3958c7;
-    text-decoration: underline;
-    font-weight: 600;
+color: #3958c7;
+text-decoration: underline;
+font-weight: 600;
 }
 
 .auth-submit{
-    border: none;
-    border-radius: 999px;
-    padding: 14px;
-    font-size: 15px;
-    font-weight: 700;
-    background: linear-gradient(135deg, #5a7dff, #4fb0ff);
-    color: #fff;
-    cursor: pointer;
-    box-shadow: 0 16px 30px rgba(74, 115, 255, 0.3);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+border: none;
+border-radius: 999px;
+padding: 14px;
+font-size: 15px;
+font-weight: 700;
+background: linear-gradient(135deg, #5a7dff, #4fb0ff);
+color: #fff;
+cursor: pointer;
+box-shadow: 0 16px 30px rgba(74, 115, 255, 0.3);
+transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .auth-submit:hover{
-    transform: translateY(-1px);
-    box-shadow: 0 20px 36px rgba(74, 115, 255, 0.35);
+transform: translateY(-1px);
+box-shadow: 0 20px 36px rgba(74, 115, 255, 0.35);
 }
 
 .terms-list{
-    border: 1px solid rgba(26, 60, 125, 0.12);
-    border-radius: 16px;
-    padding: 14px;
-    background: #fff;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
+border: 1px solid rgba(26, 60, 125, 0.12);
+border-radius: 16px;
+padding: 14px;
+background: #fff;
+display: flex;
+flex-direction: column;
+gap: 10px;
 }
 
 .terms-title{
-    margin: 0;
-    font-size: 13px;
-    font-weight: 700;
-    color: #122147;
+margin: 0;
+font-size: 13px;
+font-weight: 700;
+color: #122147;
 }
 
 .terms-item{
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 13px;
-    color: #2c3556;
+display: flex;
+align-items: center;
+gap: 8px;
+font-size: 13px;
+color: #2c3556;
 }
 
 .auth-feedback{
-    min-height: 20px;
-    font-size: 13px;
-    color: #1b3f73;
+min-height: 20px;
+font-size: 13px;
+color: #1b3f73;
 }
 
 .auth-feedback[data-type="error"]{
-    color: #d8345f;
+color: #d8345f;
 }
 
 .auth-feedback[data-type="success"]{
-    color: #1c9c73;
+color: #1c9c73;
 }
 
 @media (max-width: 599px) {
-    .login-card{
-        border-radius: 20px;
-        padding: 24px;
-    }
-    #login_buttons__kakao{
-        width: 100%;
-    }
-    #login_buttons__mk{
-        min-height: 42px;
-        font-size: 14px;
-    }
+.login-card{
+    border-radius: 20px;
+    padding: 24px;
+}
+#login_buttons__kakao{
+    width: 100%;
+}
+#login_buttons__mk{
+    min-height: 42px;
+    font-size: 14px;
+}
 
-    .auth-module{
-        padding: 16px;
-    }
+.auth-module{
+    padding: 16px;
+}
+}
+/* ------------------------------------------- */
+/* 카카오 로그인 버튼 디자인 수정  */
+/* ------------------------------------------- */
+
+/* 1. 노란색 박스 (컨테이너) */
+#login_buttons__kakao {
+    width: 100%;
+    min-height: 54px;
+    background-color: #FEE500; /* 카카오 공식 옐로우 */
+    border-radius: 12px;      /* 둥근 모서리 */
+    border: none;             /* 테두리 제거 */
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;                /* 아이콘과 글자 사이 간격 */
+
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05); /* 은은한 그림자 */
+    margin-bottom: 12px;
+    position: relative; /* 클릭 영역 확장을 위해 */
+}
+
+/* 호버 효과 */
+#login_buttons__kakao:hover {
+    background-color: #EAD100; /* 마우스 올리면 조금 더 진하게 */
+}
+
+/* 2. 아이콘 스타일 */
+#login_buttons__kakao__ibox {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#login_buttons__kakao__ibox i {
+    color: #3C1E1E; /* 카카오 공식 브라운 (아이콘) */
+    font-size: 18px;
+}
+
+/* 3. 버튼 텍스트 (기존 button 태그 초기화가 핵심) */
+.kakao-button {
+    background-color: transparent !important; /* 배경 투명 */
+    border: none !important;                  /* 테두리 제거 */
+    outline: none !important;                 /* 클릭 시 파란 테두리 제거 */
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+
+    /* 폰트 스타일 */
+    font-family: inherit;
+    font-size: 16px;
+    font-weight: 700;
+    color: #3C1E1E; /* 카카오 공식 브라운 (텍스트) */
+    cursor: pointer;
+
+    /* 텍스트 세로 중앙 정렬 보정 */
+    line-height: 1;
+}
+
+/* 4. 클릭 영역 확장 (JS가 버튼 ID에 걸려있으므로) */
+/* 사용자가 노란색 배경 아무 곳이나 눌러도 버튼이 눌린 것처럼 동작하게 하려면 JS 수정이 가장 좋지만,
+   CSS로는 버튼이 부모를 가득 채우게 하는 방법이 있습니다. */
+#login_buttons__kakao__spanbox {
+    display: flex;
+    align-items: center;
 }
