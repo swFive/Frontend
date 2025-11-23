@@ -1,5 +1,5 @@
 (() => {
-    const API_BASE_URL = "http://202.31.246.29:8080";  // 백엔드
+    const API_BASE_URL = "http://localhost:8080";  // 백엔드
     const MY_INFO_ENDPOINT = `${API_BASE_URL}/my-info`;
     const STORAGE_USER_KEY = "mc_user";
     const STORAGE_TOKEN_KEY = "mc_token";

@@ -158,27 +158,8 @@ const initHeaderLoginState = () => {
 	const loginLink = findLoginLink();
 	if (!loginLink) return;
 
-	// 로그아웃 상태 렌더링 (기본 링크/텍스트)
-    // 기존 로그아웃 버튼 제거 유틸
-    const removeLogoutButton = () => {
-        const btn = userAction.querySelector('#logoutBtn');
-        if (btn) btn.remove();
-    };
-
-	const renderLoggedOut = () => {
-		loginLink.textContent = 'login';
-		loginLink.href = './login.html';
-		loginLink.onclick = null; // 기존 핸들러 제거
-        removeLogoutButton();
-	};
-
-	// 로그인 상태 렌더링: user 객체의 name 사용, 클릭 시 로그아웃 처리
-	const renderLoggedIn = (user) => {
-		loginLink.textContent = user.name || 'me';
-		loginLink.href = './login.html'; // 프로필 클릭 시 로그인 페이지로 이동 가능 (변경 가능)
-		loginLink.onclick = null;
-
-		// 이미 있으면 다시 만들지 않음
+	// 로그아웃 버튼 생성 보장
+	const ensureLogoutButton = () => {
 		let logoutBtn = userAction.querySelector('#logoutBtn');
 		if (!logoutBtn) {
 			logoutBtn = document.createElement('button');
@@ -188,16 +169,34 @@ const initHeaderLoginState = () => {
 			logoutBtn.textContent = '로그아웃';
 			userAction.appendChild(logoutBtn);
 		}
+		return logoutBtn;
+	};
 
-		logoutBtn.onclick = () => {
-			try { localStorage.removeItem('mc_user'); } catch {}
-			try { localStorage.removeItem('mc_access_token'); } catch {}
-			try { sessionStorage.setItem('mc_toast', JSON.stringify({ type: 'info', message: '로그아웃되었습니다.' })); } catch {}
-			renderLoggedOut();
-			if (window.updateHeaderLoginState) window.updateHeaderLoginState();
-			// 로그인 페이지로 이동 (필요 없으면 주석 처리)
-			window.location.href = './login.html';
-		};
+	const logoutAndRedirect = () => {
+		try { localStorage.removeItem('mc_user'); } catch {}
+		try { localStorage.removeItem('mc_access_token'); } catch {}
+		try { sessionStorage.setItem('mc_toast', JSON.stringify({ type: 'info', message: '로그아웃되었습니다.' })); } catch {}
+		renderLoggedOut();
+		if (window.updateHeaderLoginState) window.updateHeaderLoginState();
+		window.location.href = './login.html';
+	};
+
+	// 로그아웃 상태 렌더링 (기본 링크/텍스트)
+	const renderLoggedOut = () => {
+		loginLink.textContent = 'login';
+		loginLink.href = './login.html';
+		loginLink.onclick = null; // 기존 핸들러 제거
+		const logoutBtn = ensureLogoutButton();
+		logoutBtn.onclick = logoutAndRedirect;
+	};
+
+	// 로그인 상태 렌더링: user 객체의 name 사용, 클릭 시 로그아웃 처리
+	const renderLoggedIn = (user) => {
+		loginLink.textContent = user.name || 'me';
+		loginLink.href = './login.html';
+		loginLink.onclick = null;
+		const logoutBtn = ensureLogoutButton();
+		logoutBtn.onclick = logoutAndRedirect;
 	};
 
 	// localStorage 읽기(파싱) - 실패 시 비로그인 상태로
