@@ -112,6 +112,7 @@
 
             localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(user));
             updateLoginUI(true, user);
+            console.log(user);
 
         } catch (err) {
             console.error("❌ /my-info fetch 오류:", err);
