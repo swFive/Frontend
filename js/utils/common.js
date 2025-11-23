@@ -26,7 +26,7 @@
     const d = String(date.getDate()).padStart(2, '0');
     return `${y}-${m}-${d}`;
   }
-
+    const API_BASE_URL = 'http://localhost:8080';
   // 외부에서 사용 가능한 API 바인딩
   global.MediCommon = { getTodayDateString, formatDate };
 })(typeof window !== 'undefined' ? window : globalThis);
