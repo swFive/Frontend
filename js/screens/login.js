@@ -99,7 +99,8 @@
 
             const user = {
                 id: data.id,
-                name: data.nickname || data.name || "사용자",
+                name: data.name || data.nickname || "사용자",
+                nickname: data.nickname || null,
                 raw: data
             };
 
@@ -121,10 +122,14 @@
         if (!isLoggedIn) {
             el.textContent = "로그인이 필요합니다.";
             el.dataset.state = "warning";
+            try { localStorage.removeItem(STORAGE_USER_KEY); } catch {}
+            if (typeof window.updateHeaderLoginState === "function") {
+                window.updateHeaderLoginState();
+            }
             return;
         }
 
-        el.textContent = `${user.name}님, 로그인되었습니다.`;
+        el.textContent = `${user.nickname || user.name}님, 로그인되었습니다.`;
         el.dataset.state = "success";
 
         if (typeof window.updateHeaderLoginState === "function") {

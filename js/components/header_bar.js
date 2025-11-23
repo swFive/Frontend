@@ -174,6 +174,7 @@ const initHeaderLoginState = () => {
 
 	const logoutAndRedirect = () => {
 		try { localStorage.removeItem('mc_user'); } catch {}
+		try { localStorage.removeItem('mc_token'); } catch {}
 		try { localStorage.removeItem('mc_access_token'); } catch {}
 		try { sessionStorage.setItem('mc_toast', JSON.stringify({ type: 'info', message: '로그아웃되었습니다.' })); } catch {}
 		renderLoggedOut();
@@ -192,7 +193,8 @@ const initHeaderLoginState = () => {
 
 	// 로그인 상태 렌더링: user 객체의 name 사용, 클릭 시 로그아웃 처리
 	const renderLoggedIn = (user) => {
-		loginLink.textContent = user.name || 'me';
+		const displayName = user && (user.nickname || user.name);
+		loginLink.textContent = displayName || 'me';
 		loginLink.href = './login.html';
 		loginLink.onclick = null;
 		const logoutBtn = ensureLogoutButton();
