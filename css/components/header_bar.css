@@ -147,6 +147,24 @@
     text-decoration: none;
 }
 
+/* 로그아웃 버튼 */
+.header_bar__logout{
+    padding: 8px 16px;
+    border-radius: 999px;
+    border: 1px solid rgba(37,43,97,0.35);
+    background: linear-gradient(135deg,#ffffff 0%, #f3f6ff 100%);
+    color: #252B61;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 13px;
+    transition: background .25s ease, box-shadow .25s ease, color .25s ease;
+}
+.header_bar__logout:hover{
+    background: #3B82F6;
+    color:#fff;
+    box-shadow: 0 4px 14px rgba(59,130,246,0.35);
+}
+
 @media (min-width: 769px) and (max-width: 1024px) {
     .header_bar{
         padding: 16px clamp(20px, 6vw, 48px);
