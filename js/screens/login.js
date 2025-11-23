@@ -3,6 +3,9 @@
     const MY_INFO_ENDPOINT = `${API_BASE_URL}/my-info`;
     const STORAGE_USER_KEY = "mc_user";
     const STORAGE_TOKEN_KEY = "mc_token";
+    const LOGIN_POST_DELAY_MS = 3000;
+
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
     console.log("✅ login.js 로드됨");
 
@@ -96,6 +99,9 @@
 
             const data = await response.json();
             console.log("✅ /my-info 응답:", data);
+
+            // 백엔드가 사용자 데이터를 반영할 시간을 주기 위해 잠시 대기
+            await sleep(LOGIN_POST_DELAY_MS);
 
             const user = {
                 id: data.id,
