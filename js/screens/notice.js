@@ -1,15 +1,13 @@
-// report.js
-
 /**
  * medication.js의 데이터를 읽는 함수 (localStorage에서 "medicationCards" 데이터를 가져옴)
  */
 function getMedicationData() {
     const data = localStorage.getItem("medicationCards");
-    return JSON.parse(data) || []; 
+    return JSON.parse(data) || [];
 }
 
 // ----------------------------------------------------
-//  시간대 분류 유틸리티 함수 (새로 추가) 
+//  시간대 분류 유틸리티 함수 (새로 추가)
 // ----------------------------------------------------
 
 /**
@@ -39,7 +37,7 @@ function classifyTimeSlot(timeStr) {
  */
 function calculateReportData(allMeds) {
     // --- 1. 오늘 복용량 및 완료량 계산 ---
-    
+
     // 오늘 총 복용 예정 횟수 (정 단위)
     const totalDosesToday = allMeds.reduce((sum, card) => {
         const dosePerTime = parseInt(card.doseCount) || 1;
@@ -53,47 +51,47 @@ function calculateReportData(allMeds) {
         const takenCount = parseInt(card.takenCountToday) || 0;
         return sum + (dosePerTime * takenCount);
     }, 0);
-    
+
     const todayMissed = totalDosesToday - completedDosesToday; // 오늘 미복용 횟수
 
     // --- 2. 통계 지표 계산 (임시 가정 기반) ---
-    const weeklyMissed = todayMissed + 1; 
+    const weeklyMissed = todayMissed + 1;
     const weeklyLate = allMeds.reduce((sum, card) => sum + (parseInt(card.lateCountToday) || 0), 0) || Math.max(1, Math.floor(totalDosesToday / 5)); // medication.js의 lateCountToday 사용
 
     const todaySuccessRate = totalDosesToday > 0 ? (completedDosesToday / totalDosesToday) * 100 : 0;
-    const monthlySuccess = Math.min(95, Math.floor(todaySuccessRate * 0.9 + 15)); 
+    const monthlySuccess = Math.min(95, Math.floor(todaySuccessRate * 0.9 + 15));
 
 
     // 3. 요일별 미복용/지각 데이터 (기존 로직 유지)
     const days = ['일', '월', '화', '수', '목', '금', '토'];
     const dailyMissedCounts = {
-        '일': 0, '월': 0, '화': 0, '수': 0, '목': 0, '금': 0, '토': 1 
+        '일': 0, '월': 0, '화': 0, '수': 0, '목': 0, '금': 0, '토': 1
     };
     const totalDailyScheduled = totalDosesToday > 0 ? totalDosesToday : 7;
 
     const dailyStats = days.map(day => {
         const missed = dailyMissedCounts[day];
-        return { 
-            day, 
-            missed, 
-            late: 0, 
-            total: totalDailyScheduled 
+        return {
+            day,
+            missed,
+            late: 0,
+            total: totalDailyScheduled
         };
     });
-    
+
     // 4. 약물별 미복용 Top 3 (기존 로직 유지)
     const drugStats = allMeds.map(med => {
         const dosePerTime = parseInt(med.doseCount) || 1;
         const totalTimes = Array.isArray(med.time) ? med.time.length : (med.time ? 1 : 0);
         const takenCount = parseInt(med.takenCountToday) || 0;
-        
-        const potentialTotal = dosePerTime * totalTimes * 7; 
+
+        const potentialTotal = dosePerTime * totalTimes * 7;
         const missed = (dosePerTime * totalTimes) - (dosePerTime * takenCount);
         const missed7Days = missed * 7;
-        
+
         return {
-            title: med.title, 
-            missed: missed7Days, 
+            title: med.title,
+            missed: missed7Days,
             total: potentialTotal
         };
     });
@@ -102,7 +100,7 @@ function calculateReportData(allMeds) {
 
 
     // ----------------------------------------------------
-    //  5. 시간대별 누락 계산 (핵심 로직) 
+    //  5. 시간대별 누락 계산 (핵심 로직)
     // ----------------------------------------------------
     const timeStats = {
         '아침': { scheduled: 0, missed: 0, late: 0 },
@@ -121,7 +119,7 @@ function calculateReportData(allMeds) {
         if (Array.isArray(card.time)) {
             card.time.forEach((t, index) => {
                 const slotName = classifyTimeSlot(t);
-                
+
                 // 해당 시간대에 예정된 복용량 추가
                 timeStats[slotName].scheduled += dosePerTime;
 
@@ -130,13 +128,13 @@ function calculateReportData(allMeds) {
                 if (index >= takenCount) {
                     timeStats[slotName].missed += dosePerTime;
                 }
-                
-                // 2. 지각 (현재 데이터 구조에서는 어떤 슬롯이 지각인지 알기 어려우므로, 
+
+                // 2. 지각 (현재 데이터 구조에서는 어떤 슬롯이 지각인지 알기 어려우므로,
                 // 지각 횟수(lateCount)를 복용 완료된 슬롯(index < takenCount)에 균등하게 배분하거나,
                 // 가장 간단하게는 미복용/지각 중 하나로만 기록하기 위해 여기서는 미복용만 기록하고,
-                // 아래 렌더링 시에는 지각 횟수(weeklyLate)를 사용합니다. 
+                // 아래 렌더링 시에는 지각 횟수(weeklyLate)를 사용합니다.
                 // -> 그러나 시간대별 누락이 '지각' 횟수를 보여주므로, 지각 횟수를 임시 배분합니다.
-                
+
                 // 임시 지각 배분 로직: 지각 횟수를 첫 lateCount 횟수만큼의 슬롯에 배분한다고 가정 (복용 완료된 슬롯 중)
                 if (index < lateCount) {
                     timeStats[slotName].late += dosePerTime;
@@ -159,6 +157,8 @@ function calculateReportData(allMeds) {
 
 // --- 렌더링 함수 ---
 
+// ... (updateSummaryCards, renderDailyBarChart, renderTopDrugsDoughnut 기존 로직 유지) ...
+
 /**
  * 1. Summary Cards (주요 지표)를 업데이트합니다.
  */
@@ -178,16 +178,16 @@ function updateSummaryCards(data) {
 function renderDailyBarChart(dailyStats, containerId) {
     const container = document.getElementById(containerId);
     if (!container) return;
-    
+
     container.innerHTML = '';
-    
+
     dailyStats.forEach(stat => {
         const totalFailed = stat.missed + stat.late;
         const completionCount = stat.total - totalFailed;
 
         const completionRate = stat.total > 0 ? (completionCount / stat.total) * 100 : 100;
-        const barWidth = completionRate; 
-        
+        const barWidth = completionRate;
+
         const barHTML = `
             <div class="day-chart-row">
                 <span class="day-chart-day">${stat.day}</span>
@@ -208,14 +208,14 @@ function renderTopDrugsDoughnut(topDrugs, containerId) {
     const container = document.getElementById(containerId);
     if (!container) return;
 
-    container.innerHTML = ''; 
+    container.innerHTML = '';
 
     const chartContainer = document.createElement('div');
-    chartContainer.className = 'top3-doughnut-chart'; 
-    
+    chartContainer.className = 'top3-doughnut-chart';
+
     topDrugs.forEach(drug => {
         const missedRate = drug.total > 0 ? (drug.missed / drug.total) * 100 : 0;
-        
+
         const drugHTML = `
             <div class="doughnut-item">
                 <div class="doughnut-chart-area">
@@ -228,12 +228,12 @@ function renderTopDrugsDoughnut(topDrugs, containerId) {
         `;
         chartContainer.insertAdjacentHTML('beforeend', drugHTML);
     });
-    
+
     container.appendChild(chartContainer);
 }
 
 // ----------------------------------------------------
-//  4. 시간대별 누락 바 차트 렌더링 함수 (새로 추가) 
+//  4. 시간대별 누락 바 차트 렌더링 함수 (새로 추가)
 // ----------------------------------------------------
 
 /**
@@ -244,7 +244,7 @@ function renderTimeBarChart(timeStats, containerId) {
     if (!container) return;
 
     container.innerHTML = '';
-    
+
     // 시간대 순서 정의 (이미지 레이아웃과 일치하도록)
     const timeOrder = ['아침', '점심', '저녁', '취침 전'];
 
@@ -257,8 +257,8 @@ function renderTimeBarChart(timeStats, containerId) {
         if (!stats) return;
 
         // 지각 횟수를 바의 값으로 사용 (이미지 형태에 맞춰)
-        const barValue = stats.late; 
-        
+        const barValue = stats.late;
+
         // 지각 횟수를 최대값에 대비하여 백분율로 변환
         const barWidth = (barValue / maxFailedCount) * 100;
 
@@ -279,11 +279,11 @@ function renderTimeBarChart(timeStats, containerId) {
 // --- 페이지 로드 후 실행 ---
 document.addEventListener('DOMContentLoaded', () => {
     // 1. 데이터 로드
-    const allMeds = getMedicationData(); 
-    
+    const allMeds = getMedicationData();
+
     // 2. 통계 계산
     const reportData = calculateReportData(allMeds);
-    
+
     // 3. UI 렌더링
     updateSummaryCards(reportData);
     renderDailyBarChart(reportData.dailyStats, 'day-bar-chart');

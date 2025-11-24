@@ -473,3 +473,7 @@ select.inline-select {
     .btn-row button {
       border: none; border-radius: 6px; padding: 6px 10px; cursor: pointer;
     }
+.time-item {
+    display: inline-block;
+    margin-right: 6px;
+}
