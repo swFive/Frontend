@@ -305,6 +305,8 @@ body{
     height: 100%;
     border-radius: inherit;
     background: linear-gradient(90deg, #5DD0FF, #1A71FF);
+    transition: width 0.8s ease-out, background 0.5s ease;
+    width: 0%;
 }
 
 .hero-progress__value{
@@ -409,6 +411,118 @@ body{
     opacity: 0;
     pointer-events: none;
     cursor: default;
+}
+
+/* 캘린더 날짜별 복용 상태 */
+.calendar-days button {
+    position: relative;
+}
+
+.calendar-days button .status-dot {
+    position: absolute;
+    bottom: 4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+}
+
+.calendar-days button .status-dot.complete {
+    background: #30c85a;
+}
+
+.calendar-days button .status-dot.partial {
+    background: #ffa94d;
+}
+
+.calendar-days button .status-dot.missed {
+    background: #ff6b6b;
+}
+
+.calendar-days button.other-month {
+    color: #ccc;
+}
+
+/* 캘린더 범례 */
+.calendar-legend {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 16px;
+    font-size: 12px;
+    color: #666;
+    justify-content: center;
+}
+
+.legend-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 4px;
+}
+
+.legend-dot--complete {
+    background: #30c85a;
+}
+
+.legend-dot--partial {
+    background: #ffa94d;
+}
+
+.legend-dot--missed {
+    background: #ff6b6b;
+}
+
+/* 요약 카드 - 선택 날짜 기록 목록 */
+.summary-card__records {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.summary-record {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(255, 255, 255, 0.5);
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 14px;
+}
+
+.summary-record__name {
+    font-weight: 600;
+}
+
+.summary-record__time {
+    color: #555;
+    font-size: 13px;
+}
+
+.summary-record__status {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.summary-record__status.taken {
+    background: #d4edda;
+    color: #155724;
+}
+
+.summary-record__status.missed {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.summary-record__status.pending {
+    background: #fff3cd;
+    color: #856404;
 }
 
 .summary-card{

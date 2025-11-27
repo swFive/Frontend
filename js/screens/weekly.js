@@ -79,7 +79,27 @@ function createEmptyWeeklyData() {
 
 function formatDateTimeISO(dateStr, timeStr) {
   // dateStr: YYYY-MM-DD, timeStr: HH:mm
+  // 한국 시간대(Asia/Seoul, UTC+9)로 명시
   return `${dateStr}T${timeStr}:00`;
+}
+
+/**
+ * 한국 시간대 오프셋을 포함한 ISO 형식 반환
+ * 서버가 Asia/Seoul 시간대를 사용하므로 로컬 시간 그대로 전송
+ */
+function formatDateTimeForAPI(dateStr, timeStr) {
+  // 서버가 Asia/Seoul 기준이므로, 로컬 시간을 그대로 보내도 됨
+  // 단, 서버에서 UTC로 해석하는 경우를 대비해 시간대 명시
+  const dateTime = new Date(`${dateStr}T${timeStr}:00`);
+  
+  // 로컬 시간대 오프셋 (분 단위, 한국은 -540)
+  const offset = dateTime.getTimezoneOffset();
+  const offsetHours = Math.abs(Math.floor(offset / 60));
+  const offsetMinutes = Math.abs(offset % 60);
+  const offsetSign = offset <= 0 ? '+' : '-';
+  
+  // ISO 8601 형식: 2025-11-27T15:00:00+09:00
+  return `${dateStr}T${timeStr}:00${offsetSign}${String(offsetHours).padStart(2, '0')}:${String(offsetMinutes).padStart(2, '0')}`;
 }
 
 // ==================================================
@@ -223,6 +243,7 @@ async function deleteIntakeRecord(logId) {
 
 /**
  * 약 목록에서 스케줄 정보 및 로그 추출하여 주간 데이터 생성
+ * API 데이터 + 로컬 저장소 데이터 병합
  * @param {Date} anchorDate
  * @param {Array} medications
  */
@@ -230,6 +251,7 @@ function buildWeeklyDataFromAPI(anchorDate, medications) {
   const dataset = createEmptyWeeklyData();
   const dates = getWeekDates(anchorDate);
   const missAggregator = {};
+  const localHistory = loadHistory();
 
   dates.forEach((date, idx) => {
     const key = DAY_KEYS[idx];
@@ -239,7 +261,7 @@ function buildWeeklyDataFromAPI(anchorDate, medications) {
     const summary = { success: 0, miss: 0, late: 0 };
     const historyItems = [];
 
-    // 각 약의 스케줄과 로그 확인
+    // 1. API 데이터: 각 약의 스케줄과 로그 확인
     medications.forEach((med) => {
       const schedules = med.schedulesWithLogs || [];
       
@@ -289,13 +311,38 @@ function buildWeeklyDataFromAPI(anchorDate, medications) {
             status,
             condition: "",
             memo: med.memo || "",
+            source: "api"
           });
         }
       });
     });
 
+    // 2. 로컬 저장소 데이터 추가
+    const localEntries = localHistory[dayStr] || [];
+    localEntries.forEach((entry) => {
+      const status = entry.status || "success";
+      summary[status] = (summary[status] || 0) + 1;
+      
+      if (status === "miss") {
+        (entry.meds || []).forEach((name) => {
+          missAggregator[name] = (missAggregator[name] || 0) + 1;
+        });
+      }
+      
+      historyItems.push({
+        id: entry.id,
+        logId: entry.logIds?.[0] || null,
+        time: entry.time || "--:--",
+        name: (entry.meds || []).join(", "),
+        status,
+        condition: entry.condition || "",
+        memo: entry.memo || "",
+        source: "local"
+      });
+    });
+
     // 시간순 정렬
-    historyItems.sort((a, b) => a.time.localeCompare(b.time));
+    historyItems.sort((a, b) => (a.time || "").localeCompare(b.time || ""));
     
     dataset.dayMetrics[key] = { summary, history: historyItems };
   });
@@ -504,17 +551,20 @@ function renderHistory(items, container, selectedDateLabel, dateLabel = "") {
     if (item.logId) {
       li.dataset.logId = item.logId;
     }
+    if (item.source === "local") {
+      li.classList.add("from-local");
+    }
 
     const left = document.createElement("div");
     left.className = "weekly-history-left";
 
     const time = document.createElement("span");
     time.className = "weekly-history-time";
-    time.textContent = item.time;
+    time.textContent = item.time || "--:--";
 
     const name = document.createElement("span");
     name.className = "weekly-history-pill-name";
-    name.textContent = item.name;
+    name.textContent = item.name || "알 수 없음";
 
     left.appendChild(time);
     left.appendChild(name);
@@ -533,15 +583,62 @@ function renderHistory(items, container, selectedDateLabel, dateLabel = "") {
       detail.appendChild(memo);
     }
 
+    const rightGroup = document.createElement("div");
+    rightGroup.className = "weekly-history-right";
+
     const status = document.createElement("span");
     status.className = `weekly-history-status ${item.status}`;
     status.textContent = STATUS_LABELS[item.status] || "복용";
 
+    // 삭제 버튼
+    const deleteBtn = document.createElement("button");
+    deleteBtn.className = "weekly-history-delete";
+    deleteBtn.textContent = "×";
+    deleteBtn.title = "삭제";
+    deleteBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      handleHistoryDelete(item, dateLabel);
+    });
+
+    rightGroup.appendChild(status);
+    rightGroup.appendChild(deleteBtn);
+
     li.appendChild(left);
     if (detail.childNodes.length) li.appendChild(detail);
-    li.appendChild(status);
+    li.appendChild(rightGroup);
     container.appendChild(li);
   });
+}
+
+/**
+ * 복용 기록 삭제 핸들러
+ */
+async function handleHistoryDelete(item, dateStr) {
+  if (!confirm("이 복용 기록을 삭제하시겠습니까?")) return;
+
+  let deleted = false;
+
+  // API 로그 삭제
+  if (item.logId) {
+    deleted = await deleteIntakeRecord(item.logId);
+  }
+
+  // 로컬 저장소에서 삭제 (source가 local이거나 id가 있는 경우)
+  if (item.source === "local" && item.id) {
+    const history = loadHistory();
+    if (history[dateStr]) {
+      history[dateStr] = history[dateStr].filter((entry) => entry.id !== item.id);
+      saveHistory(history);
+      deleted = true;
+    }
+  }
+
+  if (deleted) {
+    showToastMessage("삭제되었습니다.", "info");
+    await refreshWeeklyDataset();
+  } else {
+    showToastMessage("삭제에 실패했습니다.", "error");
+  }
 }
 
 function renderSummary(container, rows) {
@@ -617,28 +714,18 @@ async function initManualUi() {
     statusSelect: document.getElementById("manualStatusSelect"),
     addBtn: document.getElementById("manualAddRecordBtn"),
     drugList: document.getElementById("manualDrugList"),
-    historyList: document.getElementById("manualHistoryList"),
     groupSelect: document.getElementById("manualGroupSelect"),
     applyGroupBtn: document.getElementById("manualApplyGroupBtn"),
     saveGroupBtn: document.getElementById("manualSaveGroupBtn"),
   };
 
-  if (!manualRefs.dateInput || !manualRefs.drugList || !manualRefs.historyList) return;
+  if (!manualRefs.dateInput || !manualRefs.drugList) return;
 
   manualRefs.dateInput.value = selectedDateStr;
   if (manualRefs.timeInput) manualRefs.timeInput.value = getCurrentTime();
 
-  // 날짜 변경 시 히스토리 리스트 갱신
-  manualRefs.dateInput.addEventListener("change", () => {
-    const newDate = manualRefs.dateInput.value;
-    if (newDate) {
-      renderManualHistoryList(newDate);
-    }
-  });
-
   await renderManualDrugList();
   renderGroupSelect();
-  renderManualHistoryList(selectedDateStr);
 
   manualRefs.addBtn?.addEventListener("click", handleManualSave);
   manualRefs.saveGroupBtn?.addEventListener("click", handleGroupSave);
@@ -801,7 +888,7 @@ async function handleManualSave() {
   const status = manualRefs.statusSelect?.value || "success";
   const timeValue = manualRefs.timeInput?.value || getCurrentTime();
   const memo = manualRefs.memoInput?.value.trim() || "";
-  const recordTime = formatDateTimeISO(dateStr, timeValue);
+  const recordTime = formatDateTimeForAPI(dateStr, timeValue);
   
   // 버튼 비활성화
   if (manualRefs.addBtn) {
@@ -868,7 +955,6 @@ async function handleManualSave() {
   }
 
   // UI 갱신
-  renderManualHistoryList(dateStr);
   await refreshWeeklyDataset();
   
   // 성공 메시지
@@ -877,100 +963,6 @@ async function handleManualSave() {
   } else {
     showToastMessage("로컬에 저장되었습니다. (서버 동기화 실패)", "info");
   }
-}
-
-function renderManualHistoryList(dateStr) {
-  const list = manualRefs.historyList;
-  if (!list) return;
-  list.innerHTML = "";
-  const history = loadHistory();
-  const entries = history[dateStr] || [];
-
-  if (!entries.length) {
-    const empty = document.createElement("li");
-    empty.textContent = "기록이 없습니다.";
-    empty.style.fontSize = "13px";
-    empty.style.color = "#888";
-    list.appendChild(empty);
-    return;
-  }
-
-  entries.forEach((entry) => {
-    const li = document.createElement("li");
-    li.className = "manual-history-item";
-    if (entry.apiSynced) {
-      li.classList.add("api-synced");
-    }
-
-    const top = document.createElement("div");
-    top.className = "manual-history-top";
-
-    const meta = document.createElement("div");
-    meta.className = "manual-history-meta";
-    const pill = document.createElement("span");
-    pill.className = "manual-history-pills";
-    pill.textContent = (entry.meds || []).join(", ");
-    const time = document.createElement("span");
-    time.textContent = `${entry.time || "--:--"}`;
-    meta.appendChild(pill);
-    meta.appendChild(time);
-
-    const status = document.createElement("span");
-    status.className = `weekly-history-status ${entry.status}`;
-    status.textContent = STATUS_LABELS[entry.status] || STATUS_LABELS.success;
-
-    top.appendChild(meta);
-    top.appendChild(status);
-
-    const detail = document.createElement("div");
-    detail.className = "manual-history-detail";
-    if (entry.condition) {
-      const cond = document.createElement("span");
-      cond.textContent = `컨디션 ${CONDITION_EMOJI[entry.condition] || ""} ${
-        CONDITION_LABELS[entry.condition] || ""
-      }`;
-      detail.appendChild(cond);
-    }
-    if (entry.memo) {
-      const memo = document.createElement("span");
-      memo.textContent = entry.memo;
-      detail.appendChild(memo);
-    }
-
-    const deleteBtn = document.createElement("button");
-    deleteBtn.className = "manual-history-delete";
-    deleteBtn.textContent = "삭제";
-    deleteBtn.addEventListener("click", () => removeManualEntry(dateStr, entry.id, entry.logIds));
-
-    li.appendChild(top);
-    if (detail.childNodes.length) li.appendChild(detail);
-    li.appendChild(deleteBtn);
-    list.appendChild(li);
-  });
-}
-
-/**
- * 기록 삭제 (API 연동)
- */
-async function removeManualEntry(dateStr, entryId, logIds) {
-  if (!confirm("이 기록을 삭제하시겠습니까?")) return;
-  
-  // API에서 로그 삭제
-  if (logIds && logIds.length > 0) {
-    for (const logId of logIds) {
-      await deleteIntakeRecord(logId);
-    }
-  }
-  
-  // 로컬 히스토리에서 삭제
-  const history = loadHistory();
-  history[dateStr] = (history[dateStr] || []).filter((entry) => entry.id !== entryId);
-  saveHistory(history);
-  
-  renderManualHistoryList(dateStr);
-  await refreshWeeklyDataset();
-  
-  showToastMessage("기록이 삭제되었습니다.", "info");
 }
 
 function setCondition(btn) {
@@ -1028,9 +1020,6 @@ function handleGroupApply() {
 function syncManualDate(dateStr) {
   if (manualRefs.dateInput) {
     manualRefs.dateInput.value = dateStr;
-  }
-  if (manualRefs.historyList) {
-    renderManualHistoryList(dateStr);
   }
 }
 

@@ -129,13 +129,13 @@
                 </div>
                 <div class="hero-progress" aria-label="이번주 복용률">
                     <div class="hero-progress__top">
-                        <span>이번주 복용률</span>
-                        <button class="hero-progress__link" type="button">월별 확인하기</button>
+                        <span>오늘의 복용률</span>
+                        <button class="hero-progress__link" type="button" onclick="location.href='./weekly.html'">주간 확인하기</button>
                     </div>
-                    <div class="hero-progress__bar" role="progressbar" aria-valuenow="72" aria-valuemin="0" aria-valuemax="100">
-                        <span style="width: 72%"></span>
+                    <div class="hero-progress__bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                        <span style="width: 0%"></span>
                     </div>
-                    <p class="hero-progress__value">72% 완료</p>
+                    <p class="hero-progress__value">로딩 중...</p>
                 </div>
             </div>
         </section>
@@ -147,75 +147,51 @@
                 <div class="calendar-card__header">
                     <div>
                         <p class="calendar-card__title">Calendar</p>
-                        <p class="calendar-card__subtitle">September 2025</p>
+                        <p class="calendar-card__subtitle" id="calendarSubtitle">2025년 11월</p>
                     </div>
                     <div class="calendar-card__nav">
-                        <button type="button" aria-label="이전 달" data-calendar-nav="prev">&lt;</button>
-                        <button type="button" aria-label="다음 달" data-calendar-nav="next">&gt;</button>
+                        <button type="button" aria-label="이전 달" data-calendar-nav="prev" id="calendarPrev">&lt;</button>
+                        <button type="button" aria-label="다음 달" data-calendar-nav="next" id="calendarNext">&gt;</button>
                     </div>
                 </div>
                 <div class="calendar-weekdays">
-                    <span>Sun</span>
-                    <span>Mon</span>
-                    <span>Tue</span>
-                    <span>Wed</span>
-                    <span>Thu</span>
-                    <span>Fri</span>
-                    <span>Sat</span>
+                    <span>일</span>
+                    <span>월</span>
+                    <span>화</span>
+                    <span>수</span>
+                    <span>목</span>
+                    <span>금</span>
+                    <span>토</span>
                 </div>
-                <div class="calendar-days" aria-live="polite">
-                    <button type="button">1</button>
-                    <button type="button" class="is-today">2</button>
-                    <button type="button">3</button>
-                    <button type="button">4</button>
-                    <button type="button">5</button>
-                    <button type="button">6</button>
-                    <button type="button">7</button>
-                    <button type="button">8</button>
-                    <button type="button">9</button>
-                    <button type="button">10</button>
-                    <button type="button">11</button>
-                    <button type="button">12</button>
-                    <button type="button">13</button>
-                    <button type="button">14</button>
-                    <button type="button">15</button>
-                    <button type="button">16</button>
-                    <button type="button">17</button>
-                    <button type="button">18</button>
-                    <button type="button">19</button>
-                    <button type="button">20</button>
-                    <button type="button">21</button>
-                    <button type="button">22</button>
-                    <button type="button">23</button>
-                    <button type="button">24</button>
-                    <button type="button">25</button>
-                    <button type="button">26</button>
-                    <button type="button">27</button>
-                    <button type="button">28</button>
-                    <button type="button">29</button>
-                    <button type="button">30</button>
+                <div class="calendar-days" id="calendarDays" aria-live="polite">
+                    <!-- JS로 동적 생성 -->
+                </div>
+                <div class="calendar-legend">
+                    <span class="legend-dot legend-dot--complete"></span> 완료
+                    <span class="legend-dot legend-dot--partial"></span> 부분
+                    <span class="legend-dot legend-dot--missed"></span> 미복용
                 </div>
             </article>
-            <article class="summary-card">
-                <h2 class="summary-card__title">오늘의 요약</h2>
-                <p class="summary-card__description">총 복용해야 할 약 개수 vs 완료 개수, 다음 복용 예정 시간/약 이름까지 정리해드렸어요.</p>
+            <article class="summary-card" id="summaryCard">
+                <h2 class="summary-card__title" id="summaryTitle">오늘의 요약</h2>
+                <p class="summary-card__description" id="summaryDescription">날짜를 클릭하면 해당 날짜의 복용 기록을 확인할 수 있어요.</p>
                 <div class="summary-card__stats">
                     <div class="summary-card__stat">
                         <span>총 복용</span>
-                        <strong class="total-dose-value">10정</strong>
+                        <strong class="total-dose-value">0회</strong>
                     </div>
                     <div class="summary-card__stat">
                         <span>완료</span>
-                        <strong class="completed-dose-value">8정</strong>
+                        <strong class="completed-dose-value">0회</strong>
                     </div>
                     <div class="summary-card__stat">
                         <span>남은 약</span>
-                        <strong class="remaining-dose-value">2정</strong>
+                        <strong class="remaining-dose-value">0회</strong>
                     </div>
                 </div>
                 <div class="summary-card__next">
                     <span>다음 복용 예정</span>
-                    <p>락토핏 (유산균) · 13:00</p>
+                    <p>로딩 중...</p>
                 </div>
             </article>
         </section>
@@ -235,14 +211,6 @@
             </article>
         </section>
 
-        <div class="dashboard__divider" aria-hidden="true"></div>
-
-        <section class="dashboard__bubble-actions" aria-label="빠른 작업">
-            <button class="bubble-action bubble-action--primary" type="button">알림 보내기</button>
-            <button class="bubble-action bubble-action--neutral" type="button">주간 복용률</button>
-            <button class="bubble-action bubble-action--neutral" type="button">약 등록하기</button>
-            <button class="bubble-action bubble-action--neutral" type="button">리포트 확인</button>
-        </section>
     </div>
 </main>
 

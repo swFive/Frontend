@@ -182,24 +182,21 @@ function updateSummaryCard(allMeds) {
     const completedDoseElement = document.querySelector(".completed-dose-value");
     const remainingDoseElement = document.querySelector(".remaining-dose-value");
     const nextDoseElement = document.querySelector(".summary-card__next p");
+    const descEl = document.getElementById('summaryDescription');
 
     const todaySchedule = [];
-    let totalDoseCount = 0;
-    let completedDoseCount = 0;
+    let totalCount = 0;
+    let completedCount = 0;
 
     allMeds.forEach(card => {
-        const dosePerTime = parseInt(card.doseCount, 10) || 1;
         const times = Array.isArray(card.time) ? card.time : [card.time];
+        const dailyTimes = times.length || 1;
+        const takenCount = parseInt(card.takenCountToday, 10) || 0;
 
         times.forEach((time, index) => {
-            const takenCount = parseInt(card.takenCountToday, 10) || 0;
             const isDone = (index + 1) <= takenCount;
-
-            totalDoseCount += dosePerTime;
-
-            if (isDone) {
-                completedDoseCount += dosePerTime;
-            }
+            totalCount++;
+            if (isDone) completedCount++;
 
             todaySchedule.push({
                 name: card.title,
@@ -209,21 +206,31 @@ function updateSummaryCard(allMeds) {
         });
     });
 
-    const remainingDoseCount = totalDoseCount - completedDoseCount;
+    const remainingCount = totalCount - completedCount;
+    const percentage = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
     // 다음 복용 예정
     const notTakenSchedule = todaySchedule.filter(item => !item.isDone);
-    notTakenSchedule.sort((a, b) => a.time.localeCompare(b.time));
+    notTakenSchedule.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
 
     let nextDoseText = "✅ 오늘 복용 완료";
     if (notTakenSchedule.length > 0) {
         const nextDose = notTakenSchedule[0];
-        nextDoseText = `${nextDose.name} · ${nextDose.time}`;
+        nextDoseText = `${nextDose.name} · ${nextDose.time || '--:--'}`;
     }
 
-    if (totalDoseElement) totalDoseElement.innerText = `${totalDoseCount}정`;
-    if (completedDoseElement) completedDoseElement.innerText = `${completedDoseCount}정`;
-    if (remainingDoseElement) remainingDoseElement.innerText = `${remainingDoseCount}정`;
+    // 설명 업데이트
+    if (descEl) {
+        if (totalCount > 0) {
+            descEl.textContent = `총 ${totalCount}회 중 ${completedCount}회 복용 완료 (${percentage}%)`;
+        } else {
+            descEl.textContent = '등록된 복용 일정이 없습니다.';
+        }
+    }
+
+    if (totalDoseElement) totalDoseElement.innerText = `${totalCount}회`;
+    if (completedDoseElement) completedDoseElement.innerText = `${completedCount}회`;
+    if (remainingDoseElement) remainingDoseElement.innerText = `${remainingCount}회`;
     if (nextDoseElement) nextDoseElement.innerText = nextDoseText;
 }
 
@@ -304,6 +311,103 @@ function updateTodayDate() {
 }
 
 // ------------------------------
+// 이번주 복용률 계산 및 업데이트
+// ------------------------------
+async function updateWeeklyProgress(allMeds) {
+    const progressBar = document.querySelector(".hero-progress__bar span");
+    const progressValue = document.querySelector(".hero-progress__value");
+    const progressContainer = document.querySelector(".hero-progress__bar");
+    
+    if (!progressBar || !progressValue) return;
+    
+    // 방법 1: API 통계 사용 시도
+    let weeklyRate = await fetchWeeklyStatisticsRate();
+    
+    // 방법 2: API 실패 시 현재 데이터로 계산
+    if (weeklyRate === null) {
+        weeklyRate = calculateWeeklyRateFromMeds(allMeds);
+    }
+    
+    // UI 업데이트
+    const percentage = Math.round(weeklyRate);
+    progressBar.style.width = `${percentage}%`;
+    progressValue.textContent = `${percentage}% 완료`;
+    
+    if (progressContainer) {
+        progressContainer.setAttribute('aria-valuenow', percentage);
+    }
+    
+    // 색상 변경 (복용률에 따라)
+    if (percentage >= 80) {
+        progressBar.style.background = 'linear-gradient(90deg, #30c85a, #50e87a)';
+    } else if (percentage >= 50) {
+        progressBar.style.background = 'linear-gradient(90deg, #ffa94d, #ffcc00)';
+    } else {
+        progressBar.style.background = 'linear-gradient(90deg, #ff6b6b, #ff8a8a)';
+    }
+}
+
+// ------------------------------
+// API에서 주간 통계 가져오기
+// ------------------------------
+async function fetchWeeklyStatisticsRate() {
+    const token = localStorage.getItem("mc_token");
+    if (!token) return null;
+    
+    try {
+        const user = getUserInfo();
+        const userId = user?.id;
+        if (!userId) return null;
+        
+        // 기간별 통계 API 호출
+        const response = await fetch(`${MAINPAGE_API_URL}/api/v1/statistics?userId=${userId}&duration=week`, {
+            method: "GET",
+            headers: getMainpageAuthHeaders()
+        });
+        
+        if (!response.ok) return null;
+        
+        const data = await response.json();
+        
+        // 응답 형식에 따라 복용률 추출
+        // 예: { takenCount: 14, totalCount: 20, rate: 70 }
+        if (data.rate !== undefined) {
+            return data.rate;
+        }
+        if (data.takenCount !== undefined && data.totalCount !== undefined && data.totalCount > 0) {
+            return (data.takenCount / data.totalCount) * 100;
+        }
+        
+        return null;
+    } catch (error) {
+        console.warn("주간 통계 API 호출 실패:", error);
+        return null;
+    }
+}
+
+// ------------------------------
+// 현재 약 데이터에서 복용률 계산 (오늘 기준)
+// ------------------------------
+function calculateWeeklyRateFromMeds(allMeds) {
+    if (!allMeds || allMeds.length === 0) return 0;
+    
+    let totalSchedules = 0;
+    let completedSchedules = 0;
+    
+    allMeds.forEach(med => {
+        const dailyTimes = parseInt(med.dailyTimes, 10) || 1;
+        const takenCount = parseInt(med.takenCountToday, 10) || 0;
+        
+        totalSchedules += dailyTimes;
+        completedSchedules += Math.min(takenCount, dailyTimes);
+    });
+    
+    if (totalSchedules === 0) return 0;
+    
+    return (completedSchedules / totalSchedules) * 100;
+}
+
+// ------------------------------
 // 안전한 HTML 이스케이프
 // ------------------------------
 function escapeHtml(str) {
@@ -321,6 +425,323 @@ function escapeHtml(str) {
 
 function escapeHtmlAttr(str) {
     return escapeHtml(String(str || '')).replace(/"/g, '&quot;');
+}
+
+// ==================================================
+// 🗓️ 캘린더 기능
+// ==================================================
+
+let currentCalendarDate = new Date();
+let calendarData = {}; // 날짜별 복용 데이터 캐시
+let selectedCalendarDate = null;
+
+// ------------------------------
+// 캘린더 초기화
+// ------------------------------
+function initCalendar() {
+    const prevBtn = document.getElementById('calendarPrev');
+    const nextBtn = document.getElementById('calendarNext');
+    
+    if (prevBtn) {
+        prevBtn.addEventListener('click', () => {
+            currentCalendarDate.setMonth(currentCalendarDate.getMonth() - 1);
+            renderCalendar();
+        });
+    }
+    
+    if (nextBtn) {
+        nextBtn.addEventListener('click', () => {
+            currentCalendarDate.setMonth(currentCalendarDate.getMonth() + 1);
+            renderCalendar();
+        });
+    }
+    
+    renderCalendar();
+}
+
+// ------------------------------
+// 캘린더 렌더링
+// ------------------------------
+async function renderCalendar() {
+    const container = document.getElementById('calendarDays');
+    const subtitle = document.getElementById('calendarSubtitle');
+    
+    if (!container) return;
+    
+    const year = currentCalendarDate.getFullYear();
+    const month = currentCalendarDate.getMonth();
+    
+    // 제목 업데이트
+    if (subtitle) {
+        subtitle.textContent = `${year}년 ${month + 1}월`;
+    }
+    
+    // 캘린더 데이터 가져오기
+    await fetchCalendarData(year, month + 1);
+    
+    // 날짜 계산
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const startDayOfWeek = firstDay.getDay();
+    const daysInMonth = lastDay.getDate();
+    
+    const today = new Date();
+    const todayStr = formatDateStr(today);
+    
+    let html = '';
+    
+    // 이전 달 빈 칸
+    for (let i = 0; i < startDayOfWeek; i++) {
+        html += '<button type="button" class="is-placeholder" disabled></button>';
+    }
+    
+    // 현재 달 날짜들
+    for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const isToday = dateStr === todayStr;
+        const isSelected = selectedCalendarDate === dateStr;
+        const dayData = calendarData[dateStr];
+        
+        let statusDot = '';
+        if (dayData) {
+            if (dayData.status === 'complete') {
+                statusDot = '<span class="status-dot complete"></span>';
+            } else if (dayData.status === 'partial') {
+                statusDot = '<span class="status-dot partial"></span>';
+            } else if (dayData.status === 'missed') {
+                statusDot = '<span class="status-dot missed"></span>';
+            }
+        }
+        
+        const classes = [];
+        if (isToday) classes.push('is-today');
+        if (isSelected) classes.push('is-selected');
+        
+        html += `<button type="button" class="${classes.join(' ')}" data-date="${dateStr}">${day}${statusDot}</button>`;
+    }
+    
+    container.innerHTML = html;
+    
+    // 날짜 클릭 이벤트
+    container.querySelectorAll('button[data-date]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const date = btn.dataset.date;
+            selectCalendarDate(date);
+        });
+    });
+}
+
+// ------------------------------
+// 캘린더 데이터 가져오기 (API)
+// ------------------------------
+async function fetchCalendarData(year, month) {
+    const token = localStorage.getItem("mc_token");
+    if (!token) {
+        // API 없으면 현재 약 데이터로 시뮬레이션
+        simulateCalendarData(year, month);
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${MAINPAGE_API_URL}/api/calendar?year=${year}&month=${month}`, {
+            method: "GET",
+            headers: getMainpageAuthHeaders()
+        });
+        
+        if (!response.ok) {
+            simulateCalendarData(year, month);
+            return;
+        }
+        
+        const data = await response.json();
+        
+        // API 응답을 calendarData 형식으로 변환
+        if (Array.isArray(data)) {
+            data.forEach(item => {
+                const dateStr = item.date || item.recordDate;
+                if (dateStr) {
+                    const total = item.totalCount || item.total || 0;
+                    const taken = item.takenCount || item.taken || 0;
+                    
+                    let status = null;
+                    if (total > 0) {
+                        if (taken >= total) {
+                            status = 'complete';
+                        } else if (taken > 0) {
+                            status = 'partial';
+                        } else {
+                            status = 'missed';
+                        }
+                    }
+                    
+                    calendarData[dateStr] = {
+                        status,
+                        total,
+                        taken,
+                        records: item.records || []
+                    };
+                }
+            });
+        }
+    } catch (error) {
+        console.warn("캘린더 API 호출 실패:", error);
+        simulateCalendarData(year, month);
+    }
+}
+
+// ------------------------------
+// 캘린더 데이터 시뮬레이션 (API 실패 시 또는 초기 로드)
+// ------------------------------
+function simulateCalendarData(year, month) {
+    const today = new Date();
+    const todayStr = formatDateStr(today);
+    
+    // 현재 약 데이터로 오늘 날짜 설정
+    populateTodayCalendarData();
+}
+
+// ------------------------------
+// 오늘 날짜 캘린더 데이터 설정
+// ------------------------------
+function populateTodayCalendarData() {
+    const today = new Date();
+    const todayStr = formatDateStr(today);
+    
+    if (mainpageMedicationsCache.length > 0) {
+        const meds = transformMedicationData(mainpageMedicationsCache);
+        let total = 0;
+        let taken = 0;
+        
+        meds.forEach(med => {
+            const dailyTimes = parseInt(med.dailyTimes, 10) || 1;
+            const takenCount = parseInt(med.takenCountToday, 10) || 0;
+            total += dailyTimes;
+            taken += Math.min(takenCount, dailyTimes);
+        });
+        
+        let status = null;
+        if (total > 0) {
+            if (taken >= total) {
+                status = 'complete';
+            } else if (taken > 0) {
+                status = 'partial';
+            } else {
+                status = 'missed';
+            }
+        }
+        
+        calendarData[todayStr] = { status, total, taken, records: meds };
+    }
+}
+
+// ------------------------------
+// 날짜 선택 시 요약 카드 업데이트
+// ------------------------------
+function selectCalendarDate(dateStr) {
+    selectedCalendarDate = dateStr;
+    
+    // 캘린더 UI 업데이트
+    const container = document.getElementById('calendarDays');
+    if (container) {
+        container.querySelectorAll('button').forEach(btn => {
+            btn.classList.toggle('is-selected', btn.dataset.date === dateStr);
+        });
+    }
+    
+    // 요약 카드 업데이트
+    updateSummaryForDate(dateStr);
+}
+
+// ------------------------------
+// 선택된 날짜의 요약 표시
+// ------------------------------
+function updateSummaryForDate(dateStr) {
+    const titleEl = document.getElementById('summaryTitle');
+    const descEl = document.getElementById('summaryDescription');
+    const totalEl = document.querySelector('.total-dose-value');
+    const completedEl = document.querySelector('.completed-dose-value');
+    const remainingEl = document.querySelector('.remaining-dose-value');
+    const nextEl = document.querySelector('.summary-card__next');
+    const nextDoseEl = nextEl?.querySelector('p');
+    
+    // 날짜 파싱
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const dateObj = new Date(year, month - 1, day);
+    const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+    const dayName = dayNames[dateObj.getDay()];
+    
+    const today = new Date();
+    const todayStr = formatDateStr(today);
+    const isToday = dateStr === todayStr;
+    
+    // 제목 업데이트
+    if (titleEl) {
+        titleEl.textContent = isToday ? '오늘의 요약' : `${month}월 ${day}일 (${dayName})`;
+    }
+    
+    // 데이터 가져오기
+    const dayData = calendarData[dateStr];
+    
+    // 데이터 없으면 기본 메시지
+    if (!dayData || dayData.total === 0) {
+        if (descEl) descEl.textContent = isToday 
+            ? '등록된 복용 일정이 없습니다.' 
+            : '해당 날짜에 복용 기록이 없습니다.';
+        if (totalEl) totalEl.textContent = '0회';
+        if (completedEl) completedEl.textContent = '0회';
+        if (remainingEl) remainingEl.textContent = '0회';
+        if (nextEl) nextEl.style.display = 'none';
+        return;
+    }
+    
+    const remaining = dayData.total - dayData.taken;
+    const percentage = dayData.total > 0 ? Math.round((dayData.taken / dayData.total) * 100) : 0;
+    
+    // 설명 업데이트
+    if (descEl) {
+        descEl.textContent = `총 ${dayData.total}회 중 ${dayData.taken}회 복용 완료 (${percentage}%)`;
+    }
+    
+    // 통계 업데이트
+    if (totalEl) totalEl.textContent = `${dayData.total}회`;
+    if (completedEl) completedEl.textContent = `${dayData.taken}회`;
+    if (remainingEl) remainingEl.textContent = `${remaining}회`;
+    
+    // 다음 복용 (오늘만 표시)
+    if (nextEl) {
+        if (isToday) {
+            nextEl.style.display = 'block';
+            
+            if (dayData.records && dayData.records.length > 0) {
+                const notTaken = dayData.records.filter(r => 
+                    (parseInt(r.takenCountToday, 10) || 0) < (parseInt(r.dailyTimes, 10) || 1)
+                );
+                
+                if (nextDoseEl) {
+                    if (notTaken.length > 0) {
+                        const times = Array.isArray(notTaken[0].time) ? notTaken[0].time : [notTaken[0].time];
+                        nextDoseEl.textContent = `${notTaken[0].title} · ${times[0] || '--:--'}`;
+                    } else {
+                        nextDoseEl.textContent = '✅ 오늘 복용 완료';
+                    }
+                }
+            } else if (nextDoseEl) {
+                nextDoseEl.textContent = remaining > 0 ? '복용 예정 있음' : '✅ 오늘 복용 완료';
+            }
+        } else {
+            nextEl.style.display = 'none';
+        }
+    }
+}
+
+// ------------------------------
+// 날짜 포맷 헬퍼
+// ------------------------------
+function formatDateStr(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
 }
 
 // ------------------------------
@@ -368,6 +789,19 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderTodayMeds(transformedMeds);
     updateSummaryCard(transformedMeds);
     renderTodayMedicationCategories(transformedMeds);
+    
+    // 이번주 복용률 업데이트
+    await updateWeeklyProgress(transformedMeds);
+    
+    // 오늘 날짜 캘린더 데이터 미리 설정
+    populateTodayCalendarData();
+    
+    // 캘린더 초기화 및 렌더링
+    initCalendar();
+    
+    // 오늘 날짜 선택하여 요약 카드 업데이트
+    const todayStr = formatDateStr(new Date());
+    selectCalendarDate(todayStr);
     
     // 버튼 이벤트 바인딩
     bindStatusButtons();
