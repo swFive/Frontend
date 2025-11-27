@@ -1,13 +1,14 @@
 // ==================================================
-// 🗓️ 복용 이력 & 증상 관리 - 주간 리포트
+// 🗓️ 복용 이력 & 증상 관리 - 주간 리포트 (API 연동)
 // ==================================================
 
 const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 const HISTORY_STORAGE_KEY = "manualIntakeHistory";
 const GROUP_STORAGE_KEY = "manualIntakeGroups";
-const CARD_STORAGE_KEY = "medicationCards";
 
 const STATUS_LABELS = { success: "복용", miss: "미복용", late: "지각" };
+const STATUS_MAP_TO_API = { success: "TAKEN", miss: "SKIPPED", late: "LATE" };
+const STATUS_MAP_FROM_API = { TAKEN: "success", SKIPPED: "miss", LATE: "late" };
 const CONDITION_LABELS = { good: "좋음", normal: "보통", bad: "나쁨" };
 const CONDITION_EMOJI = { good: "😀", normal: "😐", bad: "😣" };
 
@@ -19,9 +20,17 @@ let selectedDateLabelEl;
 let summaryContainerEl;
 let currentWeekAnchor = new Date();
 let selectedDayKey = DAY_KEYS[new Date().getDay()];
-let selectedDateStr = (window.MediCommon?.formatDate || ((d)=>d.toISOString().split('T')[0]))(new Date());
+let selectedDateStr = window.MediCommon?.formatDate
+  ? window.MediCommon.formatDate(new Date())
+  : new Date().toISOString().split("T")[0];
 let manualConditionValue = "";
 let manualRefs = {};
+
+// 약 목록 캐시 (API에서 불러온 데이터)
+let medicationsCache = [];
+
+// 로딩 상태
+let isLoading = false;
 
 document.addEventListener("DOMContentLoaded", () => {
   initWeeklyPage();
@@ -31,8 +40,6 @@ document.addEventListener("DOMContentLoaded", () => {
 // ==================================================
 // 🔹 날짜 관련 헬퍼
 // ==================================================
-// formatDate 중복 제거 → MediCommon.formatDate 사용
-
 function getWeekLabel(date) {
   const year = date.getFullYear();
   const month = date.getMonth();
@@ -41,6 +48,12 @@ function getWeekLabel(date) {
   const adjustedDate = date.getDate() + firstDay.getDay();
   const weekNumber = Math.ceil(adjustedDate / 7);
   return `${year}년 ${monthLabel}월 ${weekNumber}주차`;
+}
+
+function getWeekNumber(date) {
+  const firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
+  const adjustedDate = date.getDate() + firstDay.getDay();
+  return Math.ceil(adjustedDate / 7);
 }
 
 function getWeekDates(date) {
@@ -64,19 +77,243 @@ function createEmptyWeeklyData() {
   };
 }
 
+function formatDateTimeISO(dateStr, timeStr) {
+  // dateStr: YYYY-MM-DD, timeStr: HH:mm
+  return `${dateStr}T${timeStr}:00`;
+}
+
 // ==================================================
-// 🔹 Storage helpers
+// 🔹 Storage helpers (폴백용 로컬 저장소)
 // ==================================================
 const loadHistory = () => JSON.parse(localStorage.getItem(HISTORY_STORAGE_KEY) || "{}");
 const saveHistory = (data) => localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(data));
 const loadGroups = () => JSON.parse(localStorage.getItem(GROUP_STORAGE_KEY) || "[]");
 const saveGroups = (groups) => localStorage.setItem(GROUP_STORAGE_KEY, JSON.stringify(groups));
-const loadMedicationCards = () => JSON.parse(localStorage.getItem(CARD_STORAGE_KEY) || "[]");
+
+// ==================================================
+// 🔹 API 호출 함수들
+// ==================================================
+
+/**
+ * 약 목록 조회 (API)
+ */
+async function fetchMedications() {
+  if (!window.MediAPI) {
+    console.warn("[Weekly] MediAPI not loaded, using empty list");
+    return [];
+  }
+  
+  try {
+    const data = await MediAPI.getMedicines();
+    medicationsCache = data || [];
+    return medicationsCache;
+  } catch (error) {
+    console.error("[Weekly] Failed to fetch medications:", error);
+    return [];
+  }
+}
+
+/**
+ * 캘린더 데이터 조회 (API)
+ * @param {number} year
+ * @param {number} month
+ */
+async function fetchCalendarData(year, month) {
+  if (!window.MediAPI) {
+    console.warn("[Weekly] MediAPI not loaded");
+    return null;
+  }
+  
+  try {
+    const data = await MediAPI.getCalendar(year, month);
+    return data;
+  } catch (error) {
+    console.error("[Weekly] Failed to fetch calendar:", error);
+    return null;
+  }
+}
+
+/**
+ * 통계 데이터 조회 (API)
+ * @param {number} year
+ * @param {number} month
+ * @param {number} week
+ */
+async function fetchWeeklyStatistics(year, month, week) {
+  if (!window.MediAPI) {
+    console.warn("[Weekly] MediAPI not loaded");
+    return null;
+  }
+  
+  try {
+    const data = await MediAPI.getFixedStatistics(year, month, week);
+    return data;
+  } catch (error) {
+    console.error("[Weekly] Failed to fetch statistics:", error);
+    return null;
+  }
+}
+
+/**
+ * 복용 기록 생성 (API)
+ * @param {number} scheduleId
+ * @param {string} status - success | miss | late
+ * @param {string} recordTime - ISO 8601 형식
+ */
+async function createIntakeRecord(scheduleId, status, recordTime) {
+  if (!window.MediAPI) {
+    console.warn("[Weekly] MediAPI not loaded");
+    return null;
+  }
+  
+  const apiStatus = STATUS_MAP_TO_API[status] || "TAKEN";
+  
+  try {
+    const result = await MediAPI.createIntakeLog(scheduleId, apiStatus, recordTime);
+    return result;
+  } catch (error) {
+    console.error("[Weekly] Failed to create intake log:", error);
+    return null;
+  }
+}
+
+/**
+ * 복용 일지 생성 (API)
+ * @param {Array<number>} logIds
+ * @param {string} journalTime
+ * @param {string} conditionEmoji
+ * @param {string} memo
+ */
+async function createJournalRecord(logIds, journalTime, conditionEmoji, memo) {
+  if (!window.MediAPI) {
+    console.warn("[Weekly] MediAPI not loaded");
+    return null;
+  }
+  
+  try {
+    const result = await MediAPI.createJournal(logIds, journalTime, conditionEmoji, memo);
+    return result;
+  } catch (error) {
+    console.error("[Weekly] Failed to create journal:", error);
+    return null;
+  }
+}
+
+/**
+ * 복용 기록 삭제 (API)
+ * @param {number} logId
+ */
+async function deleteIntakeRecord(logId) {
+  if (!window.MediAPI) {
+    console.warn("[Weekly] MediAPI not loaded");
+    return false;
+  }
+  
+  try {
+    return await MediAPI.deleteIntakeLog(logId);
+  } catch (error) {
+    console.error("[Weekly] Failed to delete intake log:", error);
+    return false;
+  }
+}
 
 // ==================================================
 // 🔹 Weekly dataset builder
 // ==================================================
-function buildWeeklyData(anchorDate) {
+
+/**
+ * 약 목록에서 스케줄 정보 및 로그 추출하여 주간 데이터 생성
+ * @param {Date} anchorDate
+ * @param {Array} medications
+ */
+function buildWeeklyDataFromAPI(anchorDate, medications) {
+  const dataset = createEmptyWeeklyData();
+  const dates = getWeekDates(anchorDate);
+  const missAggregator = {};
+
+  dates.forEach((date, idx) => {
+    const key = DAY_KEYS[idx];
+    const dayStr = window.MediCommon.formatDate(date);
+    const dayOfWeek = ["일", "월", "화", "수", "목", "금", "토"][date.getDay()];
+    
+    const summary = { success: 0, miss: 0, late: 0 };
+    const historyItems = [];
+
+    // 각 약의 스케줄과 로그 확인
+    medications.forEach((med) => {
+      const schedules = med.schedulesWithLogs || [];
+      
+      schedules.forEach((schedule) => {
+        // 스케줄 날짜 범위 확인
+        const startDate = schedule.startDate ? new Date(schedule.startDate) : null;
+        const endDate = schedule.endDate ? new Date(schedule.endDate) : null;
+        
+        if (startDate && date < startDate) return;
+        if (endDate && date > endDate) return;
+        
+        // 요일 매칭 확인
+        const frequency = schedule.frequency || "매일";
+        if (frequency !== "매일" && !frequency.includes(dayOfWeek)) return;
+        
+        // 해당 날짜의 로그 확인
+        const recordTime = schedule.recordTime;
+        let logDate = null;
+        
+        if (recordTime) {
+          // recordTime이 ISO 형식일 경우 날짜 추출
+          if (recordTime.includes("T")) {
+            logDate = recordTime.split("T")[0];
+          } else {
+            // 시간만 있는 경우, 오늘 날짜와 비교 필요
+            logDate = dayStr;
+          }
+        }
+        
+        // 로그가 해당 날짜에 있는 경우
+        if (schedule.logId && logDate === dayStr) {
+          const apiStatus = schedule.intakeStatus;
+          const status = STATUS_MAP_FROM_API[apiStatus] || "success";
+          
+          summary[status] = (summary[status] || 0) + 1;
+          
+          if (status === "miss") {
+            missAggregator[med.name] = (missAggregator[med.name] || 0) + 1;
+          }
+          
+          historyItems.push({
+            logId: schedule.logId,
+            scheduleId: schedule.scheduleId,
+            medicationId: med.medicationId,
+            time: schedule.intakeTime ? schedule.intakeTime.substring(0, 5) : "--:--",
+            name: med.name,
+            status,
+            condition: "",
+            memo: med.memo || "",
+          });
+        }
+      });
+    });
+
+    // 시간순 정렬
+    historyItems.sort((a, b) => a.time.localeCompare(b.time));
+    
+    dataset.dayMetrics[key] = { summary, history: historyItems };
+  });
+
+  // 미복용 상위 5개
+  dataset.summaryTop = Object.entries(missAggregator)
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 5);
+
+  return dataset;
+}
+
+/**
+ * 로컬 히스토리 기반 주간 데이터 생성 (폴백)
+ * @param {Date} anchorDate
+ */
+function buildWeeklyDataFromLocal(anchorDate) {
   const dataset = createEmptyWeeklyData();
   const history = loadHistory();
   const dates = getWeekDates(anchorDate);
@@ -92,14 +329,16 @@ function buildWeeklyData(anchorDate) {
       const status = entry.status || "success";
       summary[status] = (summary[status] || 0) + 1;
       if (status === "miss") {
-        entry.meds.forEach((name) => {
+        (entry.meds || []).forEach((name) => {
           missAggregator[name] = (missAggregator[name] || 0) + 1;
         });
       }
 
       return {
+        id: entry.id,
+        logId: entry.logId || null,
         time: entry.time || "--:--",
-        name: entry.meds.join(", "),
+        name: (entry.meds || []).join(", "),
         status,
         condition: entry.condition || "",
         memo: entry.memo || "",
@@ -122,7 +361,7 @@ const getDayMetrics = (key) => weeklyData.dayMetrics[key] || { summary: {}, hist
 // ==================================================
 // 🔹 Weekly calendar + history UI
 // ==================================================
-function initWeeklyPage() {
+async function initWeeklyPage() {
   const periodLabel = document.querySelector(".weekly-period-label");
   weeklyDayEls = Array.from(document.querySelectorAll(".weekly-day"));
   historyListEl = document.querySelector(".weekly-history-list");
@@ -131,9 +370,27 @@ function initWeeklyPage() {
 
   if (!periodLabel || !weeklyDayEls.length || !historyListEl || !selectedDateLabelEl) return;
 
+  // 주간 이동 버튼 이벤트
+  document.querySelectorAll(".weekly-nav-btn").forEach((btn) => {
+    btn.addEventListener("click", () => handleWeekNav(btn.dataset.dir));
+  });
+
   currentWeekAnchor.setHours(0, 0, 0, 0);
   weekDates = getWeekDates(currentWeekAnchor);
-  weeklyData = buildWeeklyData(currentWeekAnchor);
+  
+  // 약 목록 먼저 로드
+  showLoading(true);
+  await fetchMedications();
+  
+  // 주간 데이터 빌드
+  if (medicationsCache.length > 0) {
+    weeklyData = buildWeeklyDataFromAPI(currentWeekAnchor, medicationsCache);
+  } else {
+    weeklyData = buildWeeklyDataFromLocal(currentWeekAnchor);
+  }
+  
+  showLoading(false);
+  
   periodLabel.textContent = getWeekLabel(currentWeekAnchor);
 
   weeklyDayEls.forEach((dayEl, index) => {
@@ -157,6 +414,34 @@ function initWeeklyPage() {
   selectDay(defaultKey, defaultEl);
 
   renderSummary(summaryContainerEl, weeklyData.summaryTop);
+}
+
+/**
+ * 주간 이동 핸들러
+ * @param {string} direction - prev | next
+ */
+async function handleWeekNav(direction) {
+  const offset = direction === "prev" ? -7 : 7;
+  currentWeekAnchor.setDate(currentWeekAnchor.getDate() + offset);
+  
+  await refreshWeeklyDataset();
+  
+  const periodLabel = document.querySelector(".weekly-period-label");
+  if (periodLabel) {
+    periodLabel.textContent = getWeekLabel(currentWeekAnchor);
+  }
+  
+  // 날짜 업데이트
+  weekDates = getWeekDates(currentWeekAnchor);
+  weeklyDayEls.forEach((dayEl, index) => {
+    const key = dayEl.dataset.day || DAY_KEYS[index];
+    const idx = DAY_KEYS.indexOf(key);
+    const dateObj = weekDates[idx >= 0 ? idx : index];
+    dayEl.dataset.fullDate = window.MediCommon.formatDate(dateObj);
+    
+    const dateEl = dayEl.querySelector(".weekly-day-date");
+    if (dateEl) dateEl.textContent = dateObj.getDate();
+  });
 }
 
 function selectDay(dayKey, dayElement) {
@@ -216,6 +501,9 @@ function renderHistory(items, container, selectedDateLabel, dateLabel = "") {
   items.forEach((item) => {
     const li = document.createElement("li");
     li.className = "weekly-history-item";
+    if (item.logId) {
+      li.dataset.logId = item.logId;
+    }
 
     const left = document.createElement("div");
     left.className = "weekly-history-left";
@@ -290,18 +578,38 @@ function renderSummary(container, rows) {
   });
 }
 
-function refreshWeeklyDataset() {
-  weeklyData = buildWeeklyData(currentWeekAnchor);
+async function refreshWeeklyDataset() {
+  showLoading(true);
+  
+  await fetchMedications();
+  
+  if (medicationsCache.length > 0) {
+    weeklyData = buildWeeklyDataFromAPI(currentWeekAnchor, medicationsCache);
+  } else {
+    weeklyData = buildWeeklyDataFromLocal(currentWeekAnchor);
+  }
+  
+  showLoading(false);
+  
   refreshWeeklyDots();
   renderSummary(summaryContainerEl, weeklyData.summaryTop);
   const selectedEl = weeklyDayEls.find((el) => el.dataset.day === selectedDayKey);
   selectDay(selectedDayKey, selectedEl || weeklyDayEls[0]);
 }
 
+function showLoading(show) {
+  isLoading = show;
+  // 로딩 인디케이터 (필요시 구현)
+  const container = document.querySelector(".weekly-history-list");
+  if (show && container) {
+    container.innerHTML = '<li style="color:#999;font-size:14px;">데이터를 불러오는 중...</li>';
+  }
+}
+
 // ==================================================
 // 🔹 Manual intake UI
 // ==================================================
-function initManualUi() {
+async function initManualUi() {
   manualRefs = {
     dateInput: document.getElementById("manualDatePicker"),
     timeInput: document.getElementById("manualTimeInput"),
@@ -320,7 +628,15 @@ function initManualUi() {
   manualRefs.dateInput.value = selectedDateStr;
   if (manualRefs.timeInput) manualRefs.timeInput.value = getCurrentTime();
 
-  renderManualDrugList();
+  // 날짜 변경 시 히스토리 리스트 갱신
+  manualRefs.dateInput.addEventListener("change", () => {
+    const newDate = manualRefs.dateInput.value;
+    if (newDate) {
+      renderManualHistoryList(newDate);
+    }
+  });
+
+  await renderManualDrugList();
   renderGroupSelect();
   renderManualHistoryList(selectedDateStr);
 
@@ -343,15 +659,71 @@ function getCurrentTime() {
   return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
 }
 
-function renderManualDrugList() {
+/**
+ * 약이 오늘 복용 완료 상태인지 확인
+ * @param {Object} med - 약 정보
+ * @returns {boolean}
+ */
+function isMedicationCompleted(med) {
+  const schedules = med.schedulesWithLogs || [];
+  
+  if (schedules.length === 0) return false;
+  
+  // 오늘 스케줄 중 복용 완료된 개수 계산
+  let takenCount = 0;
+  let totalSchedules = 0;
+  
+  // 시간 목록 (중복 제거)
+  const times = [...new Set(
+    schedules
+      .map(s => s.intakeTime ? s.intakeTime.substring(0, 5) : "")
+      .filter(t => t)
+  )];
+  
+  totalSchedules = times.length;
+  
+  for (const s of schedules) {
+    if (s.logId && (s.intakeStatus === "TAKEN" || s.intakeStatus === "LATE")) {
+      takenCount++;
+    }
+  }
+  
+  // 모든 스케줄 복용 완료 시 true
+  return totalSchedules > 0 && takenCount >= totalSchedules;
+}
+
+/**
+ * 약 목록 렌더링 (복용 완료된 약만 표시)
+ */
+async function renderManualDrugList() {
   const container = manualRefs.drugList;
   if (!container) return;
   container.innerHTML = "";
-  const cards = loadMedicationCards();
+  
+  // API에서 약 목록 가져오기
+  let medications = medicationsCache;
+  if (!medications.length) {
+    medications = await fetchMedications();
+  }
 
-  if (!cards.length) {
+  // 복용 완료된 약만 필터링
+  const completedMedications = medications.filter(isMedicationCompleted);
+
+  if (!medications.length) {
     const empty = document.createElement("p");
     empty.textContent = "등록된 약이 없습니다. Medication 페이지에서 추가해주세요.";
+    empty.style.fontSize = "13px";
+    empty.style.color = "#777";
+    container.appendChild(empty);
+    manualRefs.saveGroupBtn?.setAttribute("disabled", "true");
+    manualRefs.applyGroupBtn?.setAttribute("disabled", "true");
+    manualRefs.groupSelect?.setAttribute("disabled", "true");
+    return;
+  }
+
+  if (!completedMedications.length) {
+    const empty = document.createElement("p");
+    empty.textContent = "복용 완료된 약이 없습니다. Medication 페이지에서 복용 처리 후 이용해주세요.";
     empty.style.fontSize = "13px";
     empty.style.color = "#777";
     container.appendChild(empty);
@@ -364,19 +736,31 @@ function renderManualDrugList() {
   manualRefs.saveGroupBtn?.removeAttribute("disabled");
   manualRefs.groupSelect?.removeAttribute("disabled");
 
-  cards.forEach((card, index) => {
+  completedMedications.forEach((med, index) => {
     const label = document.createElement("label");
     label.className = "manual-drug-item";
+    
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
     checkbox.className = "manual-drug-checkbox";
     checkbox.id = `manual-drug-${index}`;
-    checkbox.value = card.title;
+    checkbox.value = med.name;
+    checkbox.dataset.medicationId = med.medicationId;
+    
+    // 스케줄 정보 저장 (복용 완료된 스케줄의 logId 사용)
+    const schedules = med.schedulesWithLogs || [];
+    const completedSchedule = schedules.find((s) => s.logId && (s.intakeStatus === "TAKEN" || s.intakeStatus === "LATE"));
+    if (completedSchedule) {
+      checkbox.dataset.scheduleId = completedSchedule.scheduleId;
+      checkbox.dataset.logId = completedSchedule.logId;
+    }
+    
     const text = document.createElement("span");
-    text.textContent = card.title;
+    text.textContent = med.name;
+    
     const sub = document.createElement("small");
-    sub.textContent = card.subtitle || "";
-    sub.style.color = "#999";
+    sub.textContent = `${med.category || ""} ✓ 복용완료`;
+    sub.style.color = "#30c85a";
     sub.style.fontSize = "12px";
 
     const textWrapper = document.createElement("div");
@@ -384,7 +768,7 @@ function renderManualDrugList() {
     textWrapper.style.flexDirection = "column";
     textWrapper.style.gap = "2px";
     textWrapper.appendChild(text);
-    if (card.subtitle) textWrapper.appendChild(sub);
+    textWrapper.appendChild(sub);
 
     label.appendChild(checkbox);
     label.appendChild(textWrapper);
@@ -394,39 +778,105 @@ function renderManualDrugList() {
 
 function getSelectedDrugs() {
   return Array.from(document.querySelectorAll(".manual-drug-checkbox:checked")).map(
-    (input) => input.value
+    (input) => ({
+      name: input.value,
+      medicationId: input.dataset.medicationId,
+      scheduleId: input.dataset.scheduleId,
+      logId: input.dataset.logId ? parseInt(input.dataset.logId) : null,
+    })
   );
 }
 
-function handleManualSave() {
+/**
+ * 복용 일지 저장 (복용 완료된 약에 대해 컨디션/메모 추가)
+ */
+async function handleManualSave() {
   const dateStr = manualRefs.dateInput?.value || selectedDateStr;
-  const meds = getSelectedDrugs();
-  if (!meds.length) return alert("복용한 약을 최소 1개 선택해주세요.");
+  const selectedDrugs = getSelectedDrugs();
+  
+  if (!selectedDrugs.length) {
+    return alert("약을 최소 1개 선택해주세요.");
+  }
 
   const status = manualRefs.statusSelect?.value || "success";
   const timeValue = manualRefs.timeInput?.value || getCurrentTime();
   const memo = manualRefs.memoInput?.value.trim() || "";
+  const recordTime = formatDateTimeISO(dateStr, timeValue);
+  
+  // 버튼 비활성화
+  if (manualRefs.addBtn) {
+    manualRefs.addBtn.disabled = true;
+    manualRefs.addBtn.textContent = "저장 중...";
+  }
 
+  // 복용 완료된 약들의 logId 수집
+  const existingLogIds = selectedDrugs
+    .filter((d) => d.logId)
+    .map((d) => d.logId);
+  
+  let hasApiSuccess = false;
+
+  // 일지(컨디션/메모) 저장 - 기존 복용 기록에 연결
+  if (existingLogIds.length > 0 && (manualConditionValue || memo)) {
+    const conditionEmoji = CONDITION_EMOJI[manualConditionValue] || "";
+    const result = await createJournalRecord(existingLogIds, recordTime, conditionEmoji, memo);
+    if (result) {
+      hasApiSuccess = true;
+    }
+  } else if (existingLogIds.length > 0) {
+    // 컨디션/메모 없이도 성공으로 처리
+    hasApiSuccess = true;
+  }
+
+  // 로컬 히스토리에도 저장 (폴백 및 UI 표시용)
   const history = loadHistory();
-  const entryId = (window.crypto?.randomUUID && window.crypto.randomUUID()) || `entry-${Date.now()}`;
+  const entryId = window.crypto?.randomUUID?.() || `entry-${Date.now()}`;
   const newEntry = {
     id: entryId,
-    meds,
+    meds: selectedDrugs.map((d) => d.name),
     status,
     time: timeValue,
     condition: manualConditionValue,
     memo,
+    logIds: existingLogIds,
+    apiSynced: hasApiSuccess,
   };
 
   history[dateStr] = history[dateStr] || [];
   history[dateStr].push(newEntry);
   saveHistory(history);
 
+  // UI 리셋
   manualRefs.memoInput && (manualRefs.memoInput.value = "");
   manualRefs.timeInput && (manualRefs.timeInput.value = getCurrentTime());
+  
+  // 체크박스 해제
+  document.querySelectorAll(".manual-drug-checkbox:checked").forEach((cb) => {
+    cb.checked = false;
+  });
+  
+  // 컨디션 리셋
+  document.querySelectorAll(".condition-emoji-btn").forEach((btn) => {
+    btn.classList.remove("is-selected");
+  });
+  manualConditionValue = "";
 
+  // 버튼 복원
+  if (manualRefs.addBtn) {
+    manualRefs.addBtn.disabled = false;
+    manualRefs.addBtn.textContent = "복용 기록 추가";
+  }
+
+  // UI 갱신
   renderManualHistoryList(dateStr);
-  refreshWeeklyDataset();
+  await refreshWeeklyDataset();
+  
+  // 성공 메시지
+  if (hasApiSuccess) {
+    showToastMessage("복용 일지가 저장되었습니다.", "success");
+  } else {
+    showToastMessage("로컬에 저장되었습니다. (서버 동기화 실패)", "info");
+  }
 }
 
 function renderManualHistoryList(dateStr) {
@@ -448,6 +898,9 @@ function renderManualHistoryList(dateStr) {
   entries.forEach((entry) => {
     const li = document.createElement("li");
     li.className = "manual-history-item";
+    if (entry.apiSynced) {
+      li.classList.add("api-synced");
+    }
 
     const top = document.createElement("div");
     top.className = "manual-history-top";
@@ -456,7 +909,7 @@ function renderManualHistoryList(dateStr) {
     meta.className = "manual-history-meta";
     const pill = document.createElement("span");
     pill.className = "manual-history-pills";
-    pill.textContent = entry.meds.join(", ");
+    pill.textContent = (entry.meds || []).join(", ");
     const time = document.createElement("span");
     time.textContent = `${entry.time || "--:--"}`;
     meta.appendChild(pill);
@@ -487,7 +940,7 @@ function renderManualHistoryList(dateStr) {
     const deleteBtn = document.createElement("button");
     deleteBtn.className = "manual-history-delete";
     deleteBtn.textContent = "삭제";
-    deleteBtn.addEventListener("click", () => removeManualEntry(dateStr, entry.id));
+    deleteBtn.addEventListener("click", () => removeManualEntry(dateStr, entry.id, entry.logIds));
 
     li.appendChild(top);
     if (detail.childNodes.length) li.appendChild(detail);
@@ -496,12 +949,28 @@ function renderManualHistoryList(dateStr) {
   });
 }
 
-function removeManualEntry(dateStr, entryId) {
+/**
+ * 기록 삭제 (API 연동)
+ */
+async function removeManualEntry(dateStr, entryId, logIds) {
+  if (!confirm("이 기록을 삭제하시겠습니까?")) return;
+  
+  // API에서 로그 삭제
+  if (logIds && logIds.length > 0) {
+    for (const logId of logIds) {
+      await deleteIntakeRecord(logId);
+    }
+  }
+  
+  // 로컬 히스토리에서 삭제
   const history = loadHistory();
   history[dateStr] = (history[dateStr] || []).filter((entry) => entry.id !== entryId);
   saveHistory(history);
+  
   renderManualHistoryList(dateStr);
-  refreshWeeklyDataset();
+  await refreshWeeklyDataset();
+  
+  showToastMessage("기록이 삭제되었습니다.", "info");
 }
 
 function setCondition(btn) {
@@ -535,12 +1004,12 @@ function renderGroupSelect() {
 }
 
 function handleGroupSave() {
-  const meds = getSelectedDrugs();
-  if (!meds.length) return alert("그룹으로 저장할 약을 선택해주세요.");
+  const selectedDrugs = getSelectedDrugs();
+  if (!selectedDrugs.length) return alert("그룹으로 저장할 약을 선택해주세요.");
   const name = prompt("그룹 이름을 입력하세요", `그룹 ${new Date().toLocaleDateString()}`);
   if (!name) return;
   const groups = loadGroups();
-  groups.push({ name, meds });
+  groups.push({ name, meds: selectedDrugs.map((d) => d.name) });
   saveGroups(groups);
   renderGroupSelect();
 }
@@ -562,5 +1031,16 @@ function syncManualDate(dateStr) {
   }
   if (manualRefs.historyList) {
     renderManualHistoryList(dateStr);
+  }
+}
+
+/**
+ * 토스트 메시지 표시 (있으면 사용)
+ */
+function showToastMessage(message, type = "success") {
+  if (window.showToast && typeof window.showToast === "function") {
+    window.showToast(message, { type, duration: 2500 });
+  } else {
+    console.log(`[Toast] ${type}: ${message}`);
   }
 }

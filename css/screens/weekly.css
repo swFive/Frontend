@@ -388,6 +388,24 @@
   font-size: 13px;
 }
 
+.manual-history-item {
+  position: relative;
+}
+
+.manual-history-item.api-synced {
+  border-color: #d0f0d0;
+  background: linear-gradient(to right, #f8fff8, #fff);
+}
+
+.manual-history-item.api-synced::before {
+  content: "✓";
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 10px;
+  color: #30c85a;
+}
+
 .weekly-card-title {
   font-size: 18px;
   font-weight: 600;
