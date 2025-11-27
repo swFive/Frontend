@@ -477,3 +477,157 @@ select.inline-select {
     display: inline-block;
     margin-right: 6px;
 }
+
+/* 복용 상태 표시 */
+.intake-status {
+    font-weight: 700;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    margin-bottom: 2px;
+}
+
+.intake-progress {
+    padding: 6px 14px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #e8ecff, #f0f4ff);
+    color: #4a5cff;
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: -0.3px;
+    box-shadow: 0 2px 8px rgba(74, 92, 255, 0.12);
+}
+
+/* 버튼 그룹 */
+.drug-btn-group {
+    display: flex;
+    gap: 4px;
+    margin-top: 4px;
+    width: calc(100% - 28px);
+    max-width: 140px;
+    flex-shrink: 0;
+}
+
+.take-btn, .cancel-btn {
+    flex: 1;
+    padding: 4px 6px;
+    border: none;
+    border-radius: 6px;
+    font-size: 9px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.take-btn {
+    background: linear-gradient(135deg, #4a5cff, #7b8bff);
+    color: #fff;
+    box-shadow: 0 3px 10px rgba(74, 92, 255, 0.25);
+}
+
+.take-btn:hover:not(.disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 5px 14px rgba(74, 92, 255, 0.35);
+}
+
+.cancel-btn {
+    background: #fff;
+    color: #ff6b6b;
+    border: 1px solid #ffd0d0;
+}
+
+.cancel-btn:hover:not(.disabled) {
+    background: #fff5f5;
+    border-color: #ff6b6b;
+}
+
+.take-btn.disabled, .cancel-btn.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+.take-btn.disabled {
+    background: #e0e0e0;
+    color: #888;
+}
+
+/* ===== 반응형: 태블릿 (769px ~ 1024px) ===== */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .intake-status {
+        font-size: 13px;
+    }
+    
+    .intake-progress {
+        padding: 4px 10px;
+        font-size: 12px;
+    }
+    
+    .drug-btn-group {
+        gap: 4px;
+        max-width: 120px;
+    }
+    
+    .take-btn, .cancel-btn {
+        padding: 4px 6px;
+        font-size: 9px;
+        border-radius: 5px;
+    }
+}
+
+/* ===== 반응형: 모바일 (768px 이하) ===== */
+@media (max-width: 768px) {
+    .intake-status {
+        font-size: 12px;
+        justify-content: center;
+    }
+    
+    .intake-progress {
+        padding: 4px 10px;
+        font-size: 11px;
+        border-radius: 10px;
+    }
+    
+    .drug-btn-group {
+        flex-direction: row;
+        gap: 4px;
+        margin-top: 6px;
+        max-width: 100%;
+        width: 100%;
+    }
+    
+    .take-btn, .cancel-btn {
+        padding: 6px 8px;
+        font-size: 10px;
+        border-radius: 6px;
+    }
+}
+
+/* ===== 반응형: 작은 모바일 (480px 이하) ===== */
+@media (max-width: 480px) {
+    .intake-status {
+        font-size: 11px;
+    }
+    
+    .intake-progress {
+        padding: 3px 8px;
+        font-size: 10px;
+    }
+    
+    .drug-btn-group {
+        flex-direction: row;
+        gap: 4px;
+        max-width: 100%;
+    }
+    
+    .take-btn, .cancel-btn {
+        padding: 8px 6px;
+        font-size: 10px;
+    }
+}

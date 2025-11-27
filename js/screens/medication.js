@@ -168,21 +168,16 @@ function createCard(cardData) {
     newCard.dataset.category = cardData.subtitle;
     newCard.dataset.memo = cardData.drugs[0];
     newCard.dataset.refillThreshold = cardData.refillThreshold;
+    newCard.dataset.takenCount = cardData.takenCountToday;
+    newCard.dataset.totalTimes = cardData.dailyTimes;
 
     const color = typeColors[cardData.subtitle] || { light: "#e6d6ff", deep: "#a86af2" };
     const timeHTML = cardData.time.map(t => `<p class="time-item">${t}</p>`).join("");
 
     const takenCount = parseInt(cardData.takenCountToday);
     const totalTimes = parseInt(cardData.dailyTimes);
-
-    const isDone = takenCount >= totalTimes;
-    let takeBtnText = `💊 복용 (${takenCount}/${totalTimes})`;
-    let btnClass = "take-btn";
-
-    if (isDone) {
-        takeBtnText = "✅ 복용 완료";
-        btnClass += " completed";
-    }
+    const isDone = takenCount >= totalTimes && totalTimes > 0;
+    const hasAnyTaken = takenCount > 0;
 
     newCard.innerHTML = `
     <div class="color-tool-red">
@@ -214,7 +209,13 @@ function createCard(cardData) {
       <div class="drug-rule-info__row"><p class="dose">${cardData.dose}</p>정</div>
       <div class="drug-rule-info__row stock-row">재고: <span class="stock">${cardData.stock}</span>정</div>
       <div class="drug-rule-info__row period">기간: ${cardData.startDate} ~ ${cardData.endDate}</div>
-      <button class="${btnClass}">${takeBtnText}</button>
+      <div class="drug-rule-info__row intake-status">
+        <span class="intake-progress">${isDone ? "✅ 완료" : `${takenCount}/${totalTimes} 복용`}</span>
+      </div>
+      <div class="drug-btn-group">
+        <button class="take-btn ${isDone ? 'disabled' : ''}" ${isDone ? 'disabled' : ''}>💊 복용</button>
+        <button class="cancel-btn ${!hasAnyTaken ? 'disabled' : ''}" ${!hasAnyTaken ? 'disabled' : ''}>↩ 취소</button>
+      </div>
     </div>
   `;
 
@@ -226,50 +227,74 @@ function createCard(cardData) {
         if (!e.target.closest("select")) showStockEditor(newCard);
     });
 
-    // 🟢 [핵심 수정됨] 복용 버튼 로직
+    // 🟢 복용 버튼 로직
     const takeBtn = newCard.querySelector("button.take-btn");
     takeBtn.addEventListener("click", async () => {
+        if (takeBtn.disabled) return;
+        
         const dose = parseInt(newCard.dataset.doseCount);
         let currentStock = parseInt(newCard.dataset.stock);
-
-        // A. 취소 로직 (이미 완료했거나, 마지막 기록이 있는 경우)
-        // 취소할 때는 트리거가 없으므로 '수동으로' 재고를 +1 해줘야 합니다.
-        if (newCard.dataset.lastLogId) {
-            if (isDone || confirm("마지막 복용 기록을 취소하시겠습니까?\n(재고가 복구됩니다)")) {
-                const logId = newCard.dataset.lastLogId;
-
-                // 1. 로그 삭제
-                const deleted = await deleteIntakeLog(logId);
-                if (deleted) {
-                    // 2. 재고 복구 (수동 증가)
-                    const newStock = currentStock + dose;
-                    await updateMedicationData(newCard, { currentQuantity: newStock });
-
-                    alert("취소되었습니다.");
-                    window.location.reload();
-                } else {
-                    alert("취소 실패");
-                }
-            }
-            return;
+        const targetScheduleId = newCard.dataset.nextScheduleId;
+        
+        if (!targetScheduleId) {
+            return alert("오늘 예정된 일정이 없습니다.");
         }
 
-        // B. 복용 로직
-        // 여기서는 '수동 차감'을 하지 않습니다! (DB 트리거가 자동으로 깎음)
-        const targetScheduleId = newCard.dataset.nextScheduleId;
-        if (!targetScheduleId) return alert("오늘 예정된 일정이 없습니다.");
+        if (currentStock < dose) {
+            return alert("⚠️ 재고가 부족합니다!");
+        }
 
-        if(currentStock < dose) return alert("⚠️ 재고가 부족합니다!");
+        // 버튼 비활성화 (중복 클릭 방지)
+        takeBtn.disabled = true;
+        takeBtn.textContent = "처리중...";
 
-        // 1. 기록 생성만 요청 -> DB 트리거가 재고 차감 수행
+        // 복용 기록 생성 -> DB 트리거가 재고 차감 수행
         const logRecorded = await recordIntake(targetScheduleId);
 
-        if(logRecorded) {
-            // 성공 시 새로고침 (차감된 재고를 서버에서 다시 받아옴)
-            // alert("복용 완료!");
+        if (logRecorded) {
+            showToastIfAvailable("복용이 기록되었습니다.", "success");
             window.location.reload();
         } else {
             alert("기록 실패");
+            takeBtn.disabled = false;
+            takeBtn.textContent = "💊 복용";
+        }
+    });
+
+    // 🔴 복용 취소 버튼 로직
+    const cancelBtn = newCard.querySelector("button.cancel-btn");
+    cancelBtn.addEventListener("click", async () => {
+        if (cancelBtn.disabled) return;
+        
+        const logId = newCard.dataset.lastLogId;
+        if (!logId) {
+            return alert("취소할 복용 기록이 없습니다.");
+        }
+
+        if (!confirm("마지막 복용 기록을 취소하시겠습니까?\n(재고가 복구됩니다)")) {
+            return;
+        }
+
+        // 버튼 비활성화 (중복 클릭 방지)
+        cancelBtn.disabled = true;
+        cancelBtn.textContent = "처리중...";
+
+        const dose = parseInt(newCard.dataset.doseCount);
+        let currentStock = parseInt(newCard.dataset.stock);
+
+        // 1. 로그 삭제
+        const deleted = await deleteIntakeLog(logId);
+        if (deleted) {
+            // 2. 재고 복구 (수동 증가)
+            const newStock = currentStock + dose;
+            await updateMedicationData(newCard, { currentQuantity: newStock });
+
+            showToastIfAvailable("복용이 취소되었습니다.", "info");
+            window.location.reload();
+        } else {
+            alert("취소 실패");
+            cancelBtn.disabled = false;
+            cancelBtn.textContent = "↩ 취소";
         }
     });
 
@@ -281,6 +306,13 @@ function createCard(cardData) {
     makeEditable(newCard.querySelector(".dose"), newCard, "doseUnitQuantity", true);
 
     if (grid && addBtn) grid.insertBefore(newCard, addBtn);
+}
+
+// 토스트 메시지 (있으면 사용)
+function showToastIfAvailable(message, type = "success") {
+    if (window.showToast && typeof window.showToast === "function") {
+        window.showToast(message, { type, duration: 2500 });
+    }
 }
 
 // ... (이하 showAddForm, updateMedicationData, deleteMedication 등은 기존과 동일) ...

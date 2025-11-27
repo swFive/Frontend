@@ -1,72 +1,135 @@
 // mainpage.js
 // ----------------------------------
 // 목적: 오늘의 복약 일정(시간별 항목), 요약 카드(총정/완료/남음/다음 복용), 카테고리별 약물 요약을
-//       localStorage의 medicationCards 데이터를 기반으로 렌더링하고, 사용자 인터랙션(복용 버튼 클릭)을 처리한다.
-//
-// 전제/가정:
-// - 로컬 스토리지 키: "medicationCards" (배열 형태의 객체들)
-// - 각 카드 객체 예시:
-//   {
-//     title: "타이레놀",
-//     subtitle: "진통제",          // 카테고리
-//     time: "09:00" || ["09:00","21:00"], // 복용 시간(문자열 또는 문자열 배열)
-//     dose: "1정",                // 표시용 복용량 텍스트
-//     doseCount: "1",            // 1회 복용량을 숫자 형태로 담는 필드(문자열일 수 있음)
-//     dailyTimes: 2,             // 하루에 몇 번 복용하는지 (UI에 표시용)
-//     takenCountToday: 1         // 오늘 이미 복용한 횟수(변동 가능한 값)
-//   }
-//
-// - 이 파일은 DOMContentLoaded 시점에 실행되어야 하며, medication 데이터가 미리 준비되어 있어야 정확히 동작한다.
-//   (예: medication.js의 loadCards()가 먼저 실행되어 localStorage를 세팅해야 함)
-// - updateMedicationTakenCount(drugTitle, newState)는 외부에 구현되어 있어야 하며,
-//   사용자가 '복용' 상태를 변경했을 때 로컬스토리지에 해당 약의 takenCountToday를 실제로 갱신하도록 기대함.
-//
-// 개선 권장사항(별도):
-// - 시간 비교를 위해 현재는 문자열 비교(localeCompare)을 사용(형식 'HH:MM'을 가정).
-//   시간이 정규화 되어 있지 않다면 포맷 정규화 단계가 필요.
-// - 날짜/타임존에 민감한 로직이 필요하면 Date 객체를 사용하고 날짜를 명시적으로 다루는 게 안전.
-// - UI 갱신이 빈번하면 DOM 재생성이 비용이므로 diff/patch 방식 고려 가능.
+//       API 또는 localStorage 데이터를 기반으로 렌더링
+
+// API 기본 URL
+const MAINPAGE_API_URL = (typeof window.API_BASE_URL !== 'undefined')
+    ? window.API_BASE_URL
+    : "http://localhost:8080";
+
+// 약 목록 캐시
+let mainpageMedicationsCache = [];
 
 // ------------------------------
-// 유틸: 오늘 날짜 문자열(YYYY-MM-DD) 반환
+// 인증 헤더
 // ------------------------------
-// 중복된 날짜 유틸 제거 (MediCommon 사용 가능 시 활용)
-// const getTodayDateString = () => window.MediCommon?.getTodayDateString?.() || new Date().toISOString().split('T')[0];
+function getMainpageAuthHeaders() {
+    const token = localStorage.getItem("mc_token");
+    return {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json"
+    };
+}
 
 // ------------------------------
-// 로컬 스토리지에서 medicationCards 읽기
+// 사용자 정보 가져오기
 // ------------------------------
-function getMedicationData() {
-    const data = localStorage.getItem("medicationCards");
-    // 로컬 스토리지에 데이터가 없거나 JSON 파싱 실패 시 빈 배열 반환
+function getUserInfo() {
+    const userStr = localStorage.getItem("mc_user");
+    if (userStr) {
+        try {
+            return JSON.parse(userStr);
+        } catch (e) {
+            console.warn("사용자 정보 파싱 오류:", e);
+        }
+    }
+    return null;
+}
+
+// ------------------------------
+// API에서 약 목록 불러오기
+// ------------------------------
+async function fetchMainpageMedications() {
+    const token = localStorage.getItem("mc_token");
+    if (!token) {
+        console.warn("로그인 토큰이 없습니다.");
+        return [];
+    }
+
     try {
-        return JSON.parse(data) || [];
-    } catch (e) {
-        // 데이터가 꼬였을 경우 빈 배열로 처리하고 콘솔에 경고
-        console.warn("medicationCards 파싱 오류:", e);
+        const response = await fetch(`${MAINPAGE_API_URL}/api/mediinfo/medicines`, {
+            method: "GET",
+            headers: getMainpageAuthHeaders()
+        });
+
+        if (!response.ok) {
+            console.error("약 목록 로드 실패:", response.status);
+            return [];
+        }
+
+        const data = await response.json();
+        mainpageMedicationsCache = data || [];
+        return mainpageMedicationsCache;
+    } catch (error) {
+        console.error("약 목록 로드 중 오류:", error);
         return [];
     }
 }
 
 // ------------------------------
+// 약 데이터를 UI용 형식으로 변환
+// ------------------------------
+function transformMedicationData(medications) {
+    return medications.map(item => {
+        const schedules = item.schedulesWithLogs || [];
+        
+        // 시간 목록 추출
+        let times = schedules
+            .map(s => s.intakeTime ? s.intakeTime.substring(0, 5) : "")
+            .filter(t => t);
+        times = [...new Set(times)];
+        
+        // 복용 현황 계산
+        let takenCount = 0;
+        for (const s of schedules) {
+            if (s.logId && (s.intakeStatus === 'TAKEN' || s.intakeStatus === 'LATE')) {
+                takenCount++;
+            }
+        }
+        
+        return {
+            title: item.name,
+            subtitle: item.category || "기타",
+            time: times.length > 0 ? times : ["--:--"],
+            dose: `${item.doseUnitQuantity || 1}정`,
+            doseCount: item.doseUnitQuantity || 1,
+            dailyTimes: times.length || 1,
+            takenCountToday: takenCount,
+            nextIntakeTime: item.nextIntakeTime || "-",
+            memo: item.memo || ""
+        };
+    });
+}
+
+// ------------------------------
+// 사용자 이름 표시 업데이트
+// ------------------------------
+function updateUserName() {
+    const nameElement = document.querySelector(".welcome-user-name");
+    if (!nameElement) return;
+    
+    const user = getUserInfo();
+    const userName = user?.nickname || user?.name || user?.username || "사용자";
+    
+    nameElement.textContent = `${userName} 님,`;
+}
+
+// ------------------------------
 // 오늘의 복약 목록을 구성하고 .today-meds 컨테이너에 렌더링
 // ------------------------------
-function renderTodayMeds() {
+function renderTodayMeds(allMeds) {
     const todayMedsContainer = document.querySelector(".today-meds");
-    const allMeds = getMedicationData();
+    if (!todayMedsContainer) return;
+    
     const todaySchedule = [];
 
     // 각 카드(약)에 대해 복용 시간별 항목을 분리해서 todaySchedule에 넣음
     allMeds.forEach(card => {
-        // card.time이 배열이면 그대로, 아니면 단일값을 배열로 변환
         const times = Array.isArray(card.time) ? card.time : [card.time];
 
         times.forEach((time, index) => {
-            // takenCountToday가 문자열일 수 있으므로 파싱
             const takenCount = parseInt(card.takenCountToday, 10) || 0;
-
-            // 인덱스(0-based) 기준으로 현재 항목이 완료 상태인지 판단
-            // 예: takenCount = 1 이면 index 0 항목은 완료, index 1 항목은 미완료
             const isDone = (index + 1) <= takenCount;
 
             todaySchedule.push({
@@ -79,16 +142,23 @@ function renderTodayMeds() {
         });
     });
 
-    // 시간 기준 오름차순 정렬 (시간 문자열이 'HH:MM' 형식이라고 가정)
-    // localeCompare로 비교하지만, 형식이 일정하지 않으면 정확하지 않을 수 있음.
+    // 시간 기준 오름차순 정렬
     todaySchedule.sort((a, b) => a.time.localeCompare(b.time));
 
-    // HTML 생성: 각 행에는 데이터 속성으로 약 제목과 시간 정보를 담아두어 이후 이벤트에서 사용 가능
+    if (todaySchedule.length === 0) {
+        todayMedsContainer.innerHTML = `
+            <div class="today-meds__empty">
+                <p>등록된 약이 없습니다.</p>
+                <a href="./medication.html">약 등록하러 가기 →</a>
+            </div>
+        `;
+        return;
+    }
+
+    // HTML 생성
     const medsHTML = todaySchedule.map(item => {
         const statusText = item.isDone ? "복용 완료" : "미복용";
-        // data-initial-state는 이후 버튼 초기 상태 설정을 위해 사용됨
         const statusClass = item.isDone ? 'data-initial-state="done"' : '';
-        // done일 때 인라인 스타일(예시). 프로덕션에서는 CSS 클래스 사용 권장
         const doneStyle = item.isDone ? 'style="background-color: #e3ffe5; color: #1e88e5;"' : '';
 
         return `
@@ -101,32 +171,23 @@ function renderTodayMeds() {
         `;
     }).join("");
 
-    // 컨테이너에 삽입
-    if (todayMedsContainer) {
-        todayMedsContainer.innerHTML = medsHTML;
-    }
+    todayMedsContainer.innerHTML = medsHTML;
 }
 
 // ------------------------------
-// 요약 카드 업데이트: 총 복용량, 완료된 수, 남은 수, 다음 복용 항목
+// 요약 카드 업데이트
 // ------------------------------
-function updateSummaryCard() {
-    // DOM 요소 선택 (없을 경우 안전하게 무시)
+function updateSummaryCard(allMeds) {
     const totalDoseElement = document.querySelector(".total-dose-value");
     const completedDoseElement = document.querySelector(".completed-dose-value");
     const remainingDoseElement = document.querySelector(".remaining-dose-value");
     const nextDoseElement = document.querySelector(".summary-card__next p");
 
-    // 데이터 로드
-    const allMeds = getMedicationData();
     const todaySchedule = [];
-
-    // 누적 카운트
     let totalDoseCount = 0;
     let completedDoseCount = 0;
 
     allMeds.forEach(card => {
-        // doseCount: 1회 복용량(숫자) — 문자열일 수 있으니 파싱
         const dosePerTime = parseInt(card.doseCount, 10) || 1;
         const times = Array.isArray(card.time) ? card.time : [card.time];
 
@@ -134,10 +195,8 @@ function updateSummaryCard() {
             const takenCount = parseInt(card.takenCountToday, 10) || 0;
             const isDone = (index + 1) <= takenCount;
 
-            // 총 복용량은 각 복용 시간마다 dosePerTime을 더함
             totalDoseCount += dosePerTime;
 
-            // 완료된 경우 completed에 더함
             if (isDone) {
                 completedDoseCount += dosePerTime;
             }
@@ -152,7 +211,7 @@ function updateSummaryCard() {
 
     const remainingDoseCount = totalDoseCount - completedDoseCount;
 
-    // 아직 복용하지 않은 항목 중 시간 기준으로 가장 이른 것을 '다음 복용'으로 지정
+    // 다음 복용 예정
     const notTakenSchedule = todaySchedule.filter(item => !item.isDone);
     notTakenSchedule.sort((a, b) => a.time.localeCompare(b.time));
 
@@ -162,7 +221,6 @@ function updateSummaryCard() {
         nextDoseText = `${nextDose.name} · ${nextDose.time}`;
     }
 
-    // UI 업데이트(엘리먼트가 있을 경우에만)
     if (totalDoseElement) totalDoseElement.innerText = `${totalDoseCount}정`;
     if (completedDoseElement) completedDoseElement.innerText = `${completedDoseCount}정`;
     if (remainingDoseElement) remainingDoseElement.innerText = `${remainingDoseCount}정`;
@@ -170,31 +228,37 @@ function updateSummaryCard() {
 }
 
 // ------------------------------
-// 카테고리별로 오늘의 약물을 그룹화하여 렌더링
+// 카테고리별로 약물 그룹화하여 렌더링
 // ------------------------------
-function renderTodayMedicationCategories() {
+function renderTodayMedicationCategories(allMeds) {
     const categoryGrid = document.querySelector(".dashboard__category-grid");
-    const allMeds = getMedicationData();
-
-    // 현재는 필터 없이 전체 사용(필요시 오늘 날짜 기준 필터 적용 가능)
-    const todayActiveMeds = allMeds;
+    if (!categoryGrid) return;
 
     // subtitle 필드를 카테고리로 간주하여 그룹화
-    const groupedMeds = todayActiveMeds.reduce((acc, med) => {
+    const groupedMeds = allMeds.reduce((acc, med) => {
         const category = med.subtitle || "기타";
         if (!acc[category]) {
             acc[category] = [];
         }
 
-        // 상태 텍스트 예: (1/2 완료)
         const statusText = ` (${parseInt(med.takenCountToday, 10) || 0}/${parseInt(med.dailyTimes, 10) || 1} 완료)`;
         acc[category].push(med.title + statusText);
         return acc;
     }, {});
 
-    if (categoryGrid) {
-        categoryGrid.innerHTML = '';
+    categoryGrid.innerHTML = '';
 
+    if (Object.keys(groupedMeds).length === 0) {
+        const emptyCardHTML = `
+            <article class="category-card">
+                <p class="category-card__title">등록된 약 없음</p>
+                <ul>
+                    <li>Medication 페이지에서 약을 등록해주세요.</li>
+                </ul>
+            </article>
+        `;
+        categoryGrid.insertAdjacentHTML('beforeend', emptyCardHTML);
+    } else {
         Object.keys(groupedMeds).forEach(category => {
             const drugsList = groupedMeds[category];
 
@@ -209,19 +273,38 @@ function renderTodayMedicationCategories() {
             `;
             categoryGrid.insertAdjacentHTML('beforeend', cardHTML);
         });
+    }
 
-        // 카테고리 추가 버튼(마지막에)
-        const addCardHTML = `
-            <article class="category-card category-card--add">
-                <button type="button" aria-label="새 약 카테고리 추가">+</button>
-            </article>
-        `;
-        categoryGrid.insertAdjacentHTML('beforeend', addCardHTML);
+    // 카테고리 추가 버튼
+    const addCardHTML = `
+        <article id="openAddModalCard" class="category-card category-card--add">
+            <button type="button" aria-label="새 약 카테고리 추가">+</button>
+        </article>
+    `;
+    categoryGrid.insertAdjacentHTML('beforeend', addCardHTML);
+    
+    // 추가 버튼 이벤트 재연결
+    const openCard = document.getElementById('openAddModalCard');
+    if (openCard && typeof openModal === 'function') {
+        openCard.addEventListener('click', openModal);
     }
 }
 
 // ------------------------------
-// 안전한 HTML 이스케이프(텍스트를 HTML로 삽입할 때 사용)
+// 오늘 날짜 표시 업데이트
+// ------------------------------
+function updateTodayDate() {
+    const dateElement = document.querySelector(".hero__panel-date");
+    if (!dateElement) return;
+    
+    const today = new Date();
+    const options = { day: 'numeric', month: 'long', year: 'numeric' };
+    const formattedDate = today.toLocaleDateString('en-US', options);
+    dateElement.textContent = formattedDate;
+}
+
+// ------------------------------
+// 안전한 HTML 이스케이프
 // ------------------------------
 function escapeHtml(str) {
     if (typeof str !== 'string') return '';
@@ -236,30 +319,16 @@ function escapeHtml(str) {
     });
 }
 
-// 속성 값(예: data-attr)에 넣을 때 안전하게 변환
 function escapeHtmlAttr(str) {
     return escapeHtml(String(str || '')).replace(/"/g, '&quot;');
 }
 
 // ------------------------------
-// 페이지 로드 후 초기화: 버튼 상태 초기화, 이벤트 바인딩, 초기 렌더링
+// 버튼 이벤트 바인딩
 // ------------------------------
-document.addEventListener("DOMContentLoaded", () => {
-    // 1) 현재 DOM에 있는 .today-meds__status 버튼들을 가져온다.
-    // 주의: renderTodayMeds()가 먼저 호출되어 있어야 버튼들이 DOM에 존재함.
-    // 따라서 이 블록의 흐름 끝에서 renderTodayMeds를 호출하되, 버튼 바인딩은
-    // renderTodayMeds가 생성한 요소에 대해 동적 바인딩(이벤트 위임 등)으로 처리하는 편이 안전함.
-    // 여기서는 기존 구조를 유지하되, 먼저 렌더링을 실행한 다음 버튼을 바인딩하는 방식으로 구현.
-    
-    // 실행 순서: render -> 바인딩
-    renderTodayMeds();
-    updateSummaryCard();
-    renderTodayMedicationCategories();
-
-    // 버튼 바인딩(동적 요소가 이미 DOM에 있음)
+function bindStatusButtons() {
     const statusButtons = document.querySelectorAll('.today-meds__status');
 
-    // 내부 유틸: 버튼의 시각/ARIA 상태를 적용
     const applyState = (button, state) => {
         const isDone = state === 'done';
         button.dataset.state = state;
@@ -270,17 +339,37 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     statusButtons.forEach((button) => {
-        // 초기 상태 설정: data-initial-state가 'done'이면 done, 아니면 'missed'
         const initial = button.dataset.initialState === 'done' ? 'done' : 'missed';
         applyState(button, initial);
 
-        // 클릭 시: 현재 상태가 '미복용'이면 medication 페이지로 이동, 아니면 아무 것도 안 함
         button.addEventListener('click', () => {
             if (button.dataset.state === 'missed') {
                 window.location.href = './medication.html';
             }
         });
     });
+}
+
+// ------------------------------
+// 페이지 로드 후 초기화
+// ------------------------------
+document.addEventListener("DOMContentLoaded", async () => {
+    // 사용자 이름 업데이트
+    updateUserName();
+    
+    // 오늘 날짜 업데이트
+    updateTodayDate();
+    
+    // API에서 약 목록 불러오기
+    const medications = await fetchMainpageMedications();
+    const transformedMeds = transformMedicationData(medications);
+    
+    // UI 렌더링
+    renderTodayMeds(transformedMeds);
+    updateSummaryCard(transformedMeds);
+    renderTodayMedicationCategories(transformedMeds);
+    
+    // 버튼 이벤트 바인딩
+    bindStatusButtons();
 });
 
-// (요청에 따라 복용 완료 저장 로직 제거; 다른 페이지 공유 X, 단순 이동 동작만 유지)
