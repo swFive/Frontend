@@ -1194,18 +1194,29 @@ function showFieldEditor(cardElement, cardData, field) {
                 const newStart = wrapper.querySelector("#newStartDate").value;
                 const newEnd = wrapper.querySelector("#newEndDate").value;
                 
-                success = await updateScheduleOnServer(medicationId, cardElement, { 
-                    startDate: newStart, 
-                    endDate: newEnd 
-                });
-                if (success) {
-                    if (cardElement.querySelector(".start-date")) {
-                        cardElement.querySelector(".start-date").innerText = newStart;
+                // 같은 약의 모든 스케줄 업데이트
+                const allCardsWithSameId = document.querySelectorAll(`.drug-card[data-id="${medicationId}"]`);
+                let allSuccess = true;
+                
+                for (const card of allCardsWithSameId) {
+                    const scheduleId = card.dataset.scheduleId;
+                    if (scheduleId) {
+                        const result = await updateScheduleOnServer(medicationId, card, { 
+                            startDate: newStart, 
+                            endDate: newEnd 
+                        });
+                        if (!result) allSuccess = false;
                     }
-                    if (cardElement.querySelector(".end-date")) {
-                        cardElement.querySelector(".end-date").innerText = newEnd;
+                    // UI 업데이트
+                    if (card.querySelector(".start-date")) {
+                        card.querySelector(".start-date").innerText = newStart;
+                    }
+                    if (card.querySelector(".end-date")) {
+                        card.querySelector(".end-date").innerText = newEnd;
                     }
                 }
+                
+                success = allSuccess;
                 break;
         }
         
