@@ -684,12 +684,33 @@ const initNotificationPopup = () => {
         return div.innerHTML;
     };
 
+    // 읽음 상태를 로컬 스토리지에 저장
+    const saveReadStatusToStorage = () => {
+        try {
+            const stored = localStorage.getItem('mc_notifications') || '[]';
+            let savedNotifs = JSON.parse(stored);
+            
+            // 현재 notifications의 읽음 상태를 로컬 스토리지에 반영
+            notifications.forEach(notif => {
+                const saved = savedNotifs.find(n => n.id === notif.id);
+                if (saved) {
+                    saved.read = notif.isRead;
+                }
+            });
+            
+            localStorage.setItem('mc_notifications', JSON.stringify(savedNotifs));
+        } catch (e) {
+            console.warn("[Notification] 읽음 상태 저장 실패:", e);
+        }
+    };
+
     // 읽음 처리
     const markAsRead = async (id) => {
         const notif = notifications.find(n => n.id === id);
         if (notif) {
             notif.isRead = true;
             updateNotifDot();
+            saveReadStatusToStorage();
         }
 
         try {
@@ -698,7 +719,7 @@ const initNotificationPopup = () => {
                 headers: getAuthHeaders()
             });
         } catch (error) {
-            console.warn("[Notification] 읽음 처리 실패:", error);
+            // API 실패해도 로컬에는 저장됨
         }
     };
 
@@ -707,6 +728,7 @@ const initNotificationPopup = () => {
         notifications.forEach(n => n.isRead = true);
         renderNotifications();
         updateNotifDot();
+        saveReadStatusToStorage();
 
         try {
             await fetch(`${API_BASE_URL}/api/notifications/read-all`, {
@@ -714,7 +736,7 @@ const initNotificationPopup = () => {
                 headers: getAuthHeaders()
             });
         } catch (error) {
-            console.warn("[Notification] 모두 읽음 처리 실패:", error);
+            // API 실패해도 로컬에는 저장됨
         }
     };
 
