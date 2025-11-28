@@ -92,13 +92,48 @@ async function loadCards() {
         existingCards.forEach(card => card.remove());
 
         if (Array.isArray(data) && data.length > 0) {
+            // 오늘 날짜 및 요일 확인
+            const today = new Date();
+            const todayStr = today.toISOString().split('T')[0]; // YYYY-MM-DD
+            const todayDayIndex = today.getDay(); // 0: 일, 1: 월, ...
+            const dayNames = ["일", "월", "화", "수", "목", "금", "토"];
+            const todayDay = dayNames[todayDayIndex];
+            
+            // 요일이 해당하는지 확인하는 함수
+            const isTodaySchedule = (frequency) => {
+                if (!frequency) return true;
+                if (frequency === "매일" || frequency === "DAILY") return true;
+                // "월,화,수,목,금,토,일" 또는 "월, 화, 수" 형태 처리
+                const cleanFreq = frequency.replace(/\s/g, "");
+                return cleanFreq.includes(todayDay);
+            };
+            
+            // 날짜가 기간 내인지 확인하는 함수
+            const isWithinDateRange = (startDate, endDate) => {
+                // 시작일/종료일이 없으면 항상 표시
+                if (!startDate && !endDate) return true;
+                
+                // 시작일만 있는 경우
+                if (startDate && !endDate) {
+                    return todayStr >= startDate;
+                }
+                
+                // 종료일만 있는 경우
+                if (!startDate && endDate) {
+                    return todayStr <= endDate;
+                }
+                
+                // 둘 다 있는 경우
+                return todayStr >= startDate && todayStr <= endDate;
+            };
+            
             // 모든 스케줄을 수집해서 시간순으로 정렬
             const allScheduleCards = [];
             
             data.forEach(item => {
                 const schedules = item.schedulesWithLogs || [];
                 
-                // 스케줄이 없으면 약 자체를 하나의 카드로
+                // 스케줄이 없으면 약 자체를 하나의 카드로 (매일로 간주)
                 if (schedules.length === 0) {
                     allScheduleCards.push({
                         medicationData: item,
@@ -108,13 +143,16 @@ async function loadCards() {
                     return;
                 }
                 
-                // 각 스케줄마다 별도의 카드 생성
+                // 각 스케줄마다 별도의 카드 생성 (오늘 요일 + 기간 내에 해당하는 것만)
                 schedules.forEach(schedule => {
-                    allScheduleCards.push({
-                        medicationData: item,
-                        schedule: schedule,
-                        intakeTime: schedule.intakeTime ? schedule.intakeTime.substring(0, 5) : "00:00"
-                    });
+                    // 오늘 요일에 해당하고, 설정된 기간 내인 스케줄만 추가
+                    if (isTodaySchedule(schedule.frequency) && isWithinDateRange(schedule.startDate, schedule.endDate)) {
+                        allScheduleCards.push({
+                            medicationData: item,
+                            schedule: schedule,
+                            intakeTime: schedule.intakeTime ? schedule.intakeTime.substring(0, 5) : "00:00"
+                        });
+                    }
                 });
             });
             
