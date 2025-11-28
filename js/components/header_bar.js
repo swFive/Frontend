@@ -479,6 +479,7 @@ const initNotificationPopup = () => {
     };
 
     // 알림 목록 가져오기
+    // 참고: GET /api/notifications는 API 명세에 없음 - 목업 데이터 사용
     const fetchNotifications = async () => {
         const token = localStorage.getItem("mc_token");
         if (!token) {
@@ -486,6 +487,12 @@ const initNotificationPopup = () => {
             return;
         }
 
+        // API가 구현되어 있지 않으므로 바로 목업 데이터 사용
+        // 서버에 GET /api/notifications가 구현되면 아래 주석 해제
+        useMockData();
+        return;
+
+        /*
         try {
             const response = await fetch(`${API_BASE_URL}/api/notifications`, {
                 method: "GET",
@@ -498,7 +505,6 @@ const initNotificationPopup = () => {
             }
 
             if (!response.ok) {
-                // API가 없을 경우 목업 데이터 사용
                 useMockData();
                 return;
             }
@@ -507,9 +513,9 @@ const initNotificationPopup = () => {
             renderNotifications();
             updateNotifDot();
         } catch (error) {
-            console.warn("[Notification] API 호출 실패, 목업 데이터 사용:", error);
             useMockData();
         }
+        */
     };
 
     // 목업 데이터 사용
@@ -690,54 +696,22 @@ const initNotificationPopup = () => {
     };
 
     // 알림 설정 로드
+    // 참고: GET /api/notification-settings/{userId}는 API 명세에 없음
+    // POST /api/notification-settings만 있음 (저장용)
+    // 따라서 로컬 스토리지에서 불러오거나 기본값 사용
     const loadNotificationSettings = async () => {
-        showSettingsStatus('설정을 불러오는 중...', 'loading');
-        
         try {
-            // MediAPI가 있으면 사용, 없으면 직접 호출
-            if (typeof MediAPI !== 'undefined' && MediAPI.getNotificationSettings) {
-                const settings = await MediAPI.getNotificationSettings();
-                if (settings) {
-                    currentSettings = settings;
-                    applySettingsToUI();
-                    showSettingsStatus('', '');
-                    return;
-                }
-            }
-
-            // 직접 API 호출
-            const token = localStorage.getItem("mc_token");
-            const userStr = localStorage.getItem("mc_user");
-            if (!token || !userStr) {
-                showSettingsStatus('로그인이 필요합니다.', 'error');
-                return;
-            }
-
-            const user = JSON.parse(userStr);
-            const userId = user.userId || user.id;
-            
-            const response = await fetch(`${API_BASE_URL}/api/notification-settings/${userId}`, {
-                method: "GET",
-                headers: getAuthHeaders()
-            });
-
-            if (response.status === 404) {
-                // 설정이 없으면 기본값 사용
+            // 로컬 스토리지에서 설정 불러오기
+            const savedSettings = localStorage.getItem("mc_notification_settings");
+            if (savedSettings) {
+                currentSettings = JSON.parse(savedSettings);
+            } else {
+                // 기본값 사용
                 currentSettings = { notifyTimeOffset: 0, isRepeat: false, reNotifyInterval: 5 };
-                applySettingsToUI();
-                showSettingsStatus('', '');
-                return;
             }
-
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
-            }
-
-            currentSettings = await response.json();
             applySettingsToUI();
             showSettingsStatus('', '');
         } catch (error) {
-            console.warn("[Notification] 설정 로드 실패:", error);
             // 실패해도 기본값으로 UI 표시
             currentSettings = { notifyTimeOffset: 0, isRepeat: false, reNotifyInterval: 5 };
             applySettingsToUI();
@@ -766,7 +740,7 @@ const initNotificationPopup = () => {
         }
     };
 
-    // 알림 설정 저장
+    // 알림 설정 저장 (POST /api/notification-settings)
     const saveNotificationSettings = async () => {
         showSettingsStatus('저장 중...', 'loading');
         
@@ -781,6 +755,7 @@ const initNotificationPopup = () => {
             const userStr = localStorage.getItem("mc_user");
             if (!token || !userStr) {
                 showSettingsStatus('로그인이 필요합니다.', 'error');
+                console.warn('[알림설정] 로그인 필요');
                 return;
             }
 
@@ -788,11 +763,13 @@ const initNotificationPopup = () => {
             const userId = user.userId || user.id;
 
             const body = {
-                userId,
+                userId: userId,
                 notifyTimeOffset: settings.notifyTimeOffset,
                 isRepeat: settings.isRepeat,
                 reNotifyInterval: settings.reNotifyInterval,
             };
+
+            console.log('[알림설정] POST /api/notification-settings 요청:', body);
 
             const response = await fetch(`${API_BASE_URL}/api/notification-settings`, {
                 method: "POST",
@@ -800,13 +777,23 @@ const initNotificationPopup = () => {
                 body: JSON.stringify(body),
             });
 
+            console.log('[알림설정] 응답 상태:', response.status);
+
             if (!response.ok) {
+                const errorText = await response.text().catch(() => '');
+                console.error('[알림설정] 저장 실패:', response.status, errorText);
                 const errorMsg = getErrorMessage(response.status);
                 showSettingsStatus(errorMsg, 'error');
+                // 서버 저장 실패해도 로컬에는 저장
+                localStorage.setItem("mc_notification_settings", JSON.stringify(settings));
+                currentSettings = settings;
                 return;
             }
 
+            console.log('[알림설정] 저장 성공!');
             currentSettings = settings;
+            // 로컬 스토리지에도 저장 (서버 GET API 없으므로)
+            localStorage.setItem("mc_notification_settings", JSON.stringify(settings));
             showSettingsStatus('설정이 저장되었습니다!', 'success');
 
             // 토스트 메시지 표시 (showToast가 있는 경우)
