@@ -18,7 +18,8 @@ const MediNotification = (function() {
                 return JSON.parse(saved);
             }
         } catch (e) {}
-        return { notifyTimeOffset: 0, isRepeat: false, reNotifyInterval: 5 };
+        // 기본값: 반복 알림 활성화, 5분 간격
+        return { notifyTimeOffset: 0, isRepeat: true, reNotifyInterval: 5 };
     };
 
     // 현재 시간 (HH:mm 형식)
@@ -279,15 +280,19 @@ const MediNotification = (function() {
         // 페이지의 모든 약 카드 확인
         const cards = document.querySelectorAll('.drug-card');
 
+        // 이미 처리한 약+시간 조합 추적 (중복 알림 방지)
+        const processedMedTimes = new Set();
+        
         cards.forEach(card => {
             const medId = card.dataset.id;
+            const scheduleId = card.dataset.scheduleId || '';
             const medName = card.querySelector('.drug-info__title p')?.textContent || card.querySelector('.title-1')?.textContent || '약';
             const rule = card.querySelector('.rule')?.textContent || '매일';
             const timeItems = card.querySelectorAll('.time-item');
 
             // 복용 완료 또는 건너뛰기 여부 확인
             const progressText = card.querySelector('.intake-progress')?.textContent || '';
-            const isDone = progressText.includes('완료');
+            const isDone = progressText.includes('완료') || progressText.includes('지각');
             const isSkipped = progressText.includes('건너뜀');
             
             // 건너뛴 약은 알림 제외
@@ -300,6 +305,11 @@ const MediNotification = (function() {
             timeItems.forEach(timeItem => {
                 const scheduleTime = timeItem.textContent.trim();
                 if (!scheduleTime || scheduleTime === '-') return;
+                
+                // 같은 약+시간 조합은 한 번만 처리
+                const medTimeKey = `${medId}-${scheduleTime}`;
+                if (processedMedTimes.has(medTimeKey)) return;
+                processedMedTimes.add(medTimeKey);
 
                 const scheduleMinutes = timeToMinutes(scheduleTime);
 
