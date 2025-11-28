@@ -416,7 +416,15 @@ function createCard(cardData) {
             return alert("취소할 복용 기록이 없습니다.");
         }
 
-        if (!confirm("마지막 복용 기록을 취소하시겠습니까?\n(재고가 복구됩니다)")) {
+        // 건너뛰기 상태인지 확인
+        const progressText = newCard.querySelector(".intake-progress")?.textContent || "";
+        const wasSkipped = progressText.includes("건너뜀");
+        
+        const confirmMsg = wasSkipped 
+            ? "건너뛰기를 취소하시겠습니까?" 
+            : "마지막 복용 기록을 취소하시겠습니까?\n(재고가 복구됩니다)";
+        
+        if (!confirm(confirmMsg)) {
             return;
         }
 
@@ -430,11 +438,14 @@ function createCard(cardData) {
         // 1. 로그 삭제
         const deleted = await deleteIntakeLog(logId);
         if (deleted) {
-            // 2. 재고 복구 (수동 증가)
-            const newStock = currentStock + dose;
-            await updateMedicationData(newCard, { currentQuantity: newStock });
+            // 2. 재고 복구 (건너뛰기가 아닌 경우에만)
+            if (!wasSkipped) {
+                const newStock = currentStock + dose;
+                await updateMedicationData(newCard, { currentQuantity: newStock });
+            }
 
-            showToastIfAvailable("복용이 취소되었습니다.", "info");
+            const toastMsg = wasSkipped ? "건너뛰기가 취소되었습니다." : "복용이 취소되었습니다.";
+            showToastIfAvailable(toastMsg, "info");
             window.location.reload();
         } else {
             alert("취소 실패");
