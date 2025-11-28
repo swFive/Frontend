@@ -1144,22 +1144,59 @@ function showFieldEditor(cardElement, cardData, field) {
                 break;
                 
             case "time":
-                const times = [];
+                const newTimes = [];
                 wrapper.querySelectorAll(".time-input").forEach(input => {
-                    if (input.value) times.push(input.value);
+                    if (input.value) newTimes.push(input.value);
                 });
-                if (times.length === 0) {
+                if (newTimes.length === 0) {
                     alert("최소 하나의 시간을 입력해주세요.");
                     saveBtn.disabled = false;
                     saveBtn.textContent = "저장";
                     return;
                 }
                 
-                success = await updateScheduleOnServer(medicationId, cardElement, { times: times.join(",") });
-                if (success) {
-                    const timeRow = cardElement.querySelector(".drug-rule-info__row.time");
-                    timeRow.innerHTML = times.map(t => `<p class="time-item">${t}</p>`).join("");
+                // 현재 카드의 시간 (원본)
+                const currentTime = cardElement.querySelector(".time-item")?.innerText || "";
+                
+                // 현재 카드의 스케줄 정보
+                const scheduleData = JSON.parse(cardElement.dataset.schedules || "[]")[0] || {};
+                const frequency = scheduleData.frequency || cardElement.querySelector(".rule")?.innerText || "매일";
+                const scheduleStartDate = scheduleData.startDate || cardElement.querySelector(".start-date")?.innerText || "";
+                const scheduleEndDate = scheduleData.endDate || cardElement.querySelector(".end-date")?.innerText || "";
+                
+                // 현재 시간은 기존 스케줄 업데이트, 새 시간은 새 스케줄 생성
+                console.log("[Time] 저장할 시간들:", newTimes);
+                console.log("[Time] 스케줄 정보:", { frequency, scheduleStartDate, scheduleEndDate });
+                
+                let timeSuccess = true;
+                
+                for (let i = 0; i < newTimes.length; i++) {
+                    const time = newTimes[i];
+                    console.log(`[Time] 처리 중 (${i}):`, time);
+                    
+                    if (i === 0) {
+                        // 첫 번째 시간은 현재 스케줄 업데이트
+                        const result = await updateScheduleOnServer(medicationId, cardElement, { 
+                            intakeTime: time 
+                        });
+                        console.log("[Time] 첫 번째 시간 업데이트 결과:", result);
+                        if (!result) timeSuccess = false;
+                    } else {
+                        // 추가된 시간은 새 스케줄 생성
+                        console.log("[Time] 새 스케줄 생성 시도:", time);
+                        const newScheduleResult = await createNewSchedule(medicationId, {
+                            intakeTime: time,
+                            frequency: frequency,
+                            startDate: scheduleStartDate,
+                            endDate: scheduleEndDate
+                        });
+                        console.log("[Time] 새 스케줄 생성 결과:", newScheduleResult);
+                        // 실패해도 계속 진행
+                    }
                 }
+                
+                // 하나라도 처리했으면 성공으로 간주하고 새로고침
+                success = true;
                 break;
                 
             case "dose":
@@ -1232,6 +1269,61 @@ function showFieldEditor(cardElement, cardData, field) {
             saveBtn.textContent = "저장";
         }
     };
+}
+
+// ==================================================
+// 🔹 새 스케줄 생성 (시간 추가용)
+// POST /api/mediinfo/medicines/{medicationId}/schedules
+// ==================================================
+async function createNewSchedule(medicationId, scheduleData) {
+    try {
+        // 시간 형식 변환 (HH:mm -> HH:mm:ss)
+        let intakeTime = scheduleData.intakeTime || "12:00";
+        if (intakeTime.length === 5) {
+            intakeTime = intakeTime + ":00";
+        }
+        
+        // 요일 형식 변환
+        let frequency = scheduleData.frequency || "매일";
+        if (frequency === "매일") {
+            frequency = "월,화,수,목,금,토,일";
+        }
+        // 요일에 공백 있으면 제거
+        frequency = frequency.replace(/\s/g, "");
+        
+        const payload = {
+            intakeTime: intakeTime,
+            frequency: frequency,
+            startDate: scheduleData.startDate || null,
+            endDate: scheduleData.endDate || null
+        };
+        
+        console.log("[Schedule] 새 스케줄 생성 요청:", `${API_BASE_URL}/api/mediinfo/medicines/${medicationId}/schedules`);
+        console.log("[Schedule] 페이로드:", payload);
+        
+        const res = await fetch(`${API_BASE_URL}/api/mediinfo/medicines/${medicationId}/schedules`, {
+            method: "POST",
+            headers: getAuthHeaders(),
+            body: JSON.stringify(payload)
+        });
+        
+        const responseText = await res.text();
+        console.log("[Schedule] 응답:", res.status, responseText);
+        
+        if (res.ok || res.status === 201) {
+            console.log("[Schedule] 새 스케줄 생성 성공");
+            showToastIfAvailable("새 복용 시간이 추가되었습니다.", "success");
+            return true;
+        } else {
+            console.error("[Schedule] 새 스케줄 생성 실패:", res.status, responseText);
+            showToastIfAvailable("스케줄 생성 실패: " + res.status, "error");
+            return false;
+        }
+    } catch (e) {
+        console.error("[Schedule] 새 스케줄 생성 오류:", e);
+        showToastIfAvailable("네트워크 오류", "error");
+        return false;
+    }
 }
 
 // ==================================================
@@ -1322,15 +1414,15 @@ async function updateScheduleOnServer(medicationId, cardElement, scheduleChanges
             // 새 스케줄 추가
             for (const time of newTimes) {
                 const payload = {
-                    intakeTime: time,
-                    frequency: frequency,
+                    intakeTime: time.length === 5 ? time + ":00" : time,
+                    frequency: frequency.replace(/\s/g, ""),
                     startDate: scheduleChanges.startDate || currentStartDate,
                     endDate: scheduleChanges.endDate || currentEndDate
                 };
                 
-                console.log(`[Schedule] POST /api/medicines/${medicationId}/schedules`, payload);
+                console.log(`[Schedule] POST /api/mediinfo/medicines/${medicationId}/schedules`, payload);
                 
-                const addRes = await fetch(`${API_BASE_URL}/api/medicines/${medicationId}/schedules`, {
+                const addRes = await fetch(`${API_BASE_URL}/api/mediinfo/medicines/${medicationId}/schedules`, {
                     method: "POST",
                     headers: getAuthHeaders(),
                     body: JSON.stringify(payload)
