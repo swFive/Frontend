@@ -298,7 +298,6 @@ function createCard(cardData) {
     <div class="drug-rule-info">
       <div class="drug-rule-info__row editable-row" data-field="rule" title="클릭하여 수정"><p class="rule">${cardData.rule}</p></div>
       <div class="drug-rule-info__row time editable-row" data-field="time" title="클릭하여 수정">${timeHTML}</div>
-      <div class="drug-rule-info__row"><p class="next">${cardData.next}</p></div>
       <div class="drug-rule-info__row editable-row" data-field="dose" title="클릭하여 수정"><p class="dose">${cardData.dose}</p>정</div>
       <div class="drug-rule-info__row stock-row editable-row" data-field="stock" title="클릭하여 수정">재고: <span class="stock">${cardData.stock}</span>정</div>
       <div class="drug-rule-info__row period editable-row" data-field="period" title="클릭하여 수정">기간: <span class="start-date">${cardData.startDate}</span> ~ <span class="end-date">${cardData.endDate}</span></div>
