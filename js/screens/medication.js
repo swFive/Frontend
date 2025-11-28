@@ -13,11 +13,34 @@ const API_BASE_URL = (typeof window.API_BASE_URL !== 'undefined')
 // ----------------------------
 // 🔹 복용 타입별 색상 설정
 // ----------------------------
-const typeColors = {
+const defaultTypeColors = {
     "필수 복용": { light: "#ffd0d0", deep: "#f28282" },
     "기간제": { light: "#d0d0ff", deep: "#8282f2" },
     "건강보조제": { light: "#fff7b0", deep: "#ffe12e" }
 };
+
+// 사용자 정의 카테고리 불러오기
+function loadCustomCategories() {
+    try {
+        const saved = localStorage.getItem("mc_custom_categories");
+        return saved ? JSON.parse(saved) : {};
+    } catch (e) {
+        return {};
+    }
+}
+
+// 사용자 정의 카테고리 저장
+function saveCustomCategories(categories) {
+    localStorage.setItem("mc_custom_categories", JSON.stringify(categories));
+}
+
+// 기본 + 사용자 정의 카테고리 합치기
+function getTypeColors() {
+    return { ...defaultTypeColors, ...loadCustomCategories() };
+}
+
+// 전역 참조용 (기존 코드 호환)
+let typeColors = getTypeColors();
 
 // ----------------------------
 // 🔹 유틸리티: 토큰 가져오기
@@ -519,13 +542,19 @@ function showToastIfAvailable(message, type = "success") {
 // 🔹 [C] 약 등록 (POST)
 // ==================================================
 function showAddForm() {
+    // 카테고리 옵션 동적 생성
+    typeColors = getTypeColors();
+    const categoryOptions = Object.keys(typeColors)
+        .map(name => `<option value="${name}">${name}</option>`)
+        .join("");
+    
     const wrapper = document.createElement("div");
     wrapper.className = "modal-bg";
     wrapper.innerHTML = `
     <div class="modal">
       <h3>💊 새 약 추가</h3>
       <label>약 이름 <input type="text" id="drugName" placeholder="예: 타이레놀"></label>
-      <label>카테고리 <select id="drugType"><option>필수 복용</option><option>기간제</option><option>건강보조제</option></select></label>
+      <label>카테고리 <select id="drugType">${categoryOptions}</select></label>
       <label>주기(요일) <input type="text" id="drugDays" placeholder="예: 월,수,금 (쉼표구분)"></label>
       <label>시간 <input type="text" id="drugTimes" placeholder="예: 09:00, 18:00"></label>
       <label>1회 복용량 <input type="number" id="doseCount" value="1"></label>
@@ -749,63 +778,174 @@ function showCategoryEditor(cardElement, cardData) {
     const currentCategory = cardElement.querySelector(".category-text")?.innerText || "필수 복용";
     const medicationId = cardElement.dataset.id;
     
+    // 최신 카테고리 목록 가져오기
+    typeColors = getTypeColors();
+    
+    // 카테고리 버튼 HTML 생성
+    const categoryEmojis = {
+        "필수 복용": "🔴",
+        "기간제": "🔵",
+        "건강보조제": "🟡"
+    };
+    
+    let categoryButtonsHTML = "";
+    Object.entries(typeColors).forEach(([name, color]) => {
+        const isSelected = currentCategory === name;
+        const emoji = categoryEmojis[name] || "🏷️";
+        const isCustom = !defaultTypeColors[name];
+        
+        categoryButtonsHTML += `
+        <div class="category-option-wrapper" style="display: flex; align-items: center; gap: 8px;">
+            <button class="category-option-btn ${isSelected ? 'selected' : ''}" data-value="${name}" 
+                style="flex: 1; padding: 12px; border: 2px solid ${isSelected ? color.deep : '#ddd'}; 
+                border-radius: 8px; background: ${isSelected ? color.light : '#fff'}; 
+                cursor: pointer; font-size: 14px; text-align: left;">
+                ${emoji} ${name}
+            </button>
+            ${isCustom ? `<button class="delete-category-btn" data-category="${name}" 
+                style="width: 32px; height: 32px; border: none; background: #ff4444; 
+                color: white; border-radius: 6px; cursor: pointer; font-size: 14px;">×</button>` : ''}
+        </div>`;
+    });
+    
     const wrapper = document.createElement("div");
     wrapper.className = "modal-bg";
     wrapper.innerHTML = `
-    <div class="modal" style="max-width: 320px;">
+    <div class="modal" style="max-width: 360px;">
       <h3>📁 카테고리 수정</h3>
-      <p style="margin-bottom: 15px; color: #666;">카테고리를 선택하세요</p>
-      <div class="category-options" style="display: flex; flex-direction: column; gap: 10px;">
-        <button class="category-option-btn ${currentCategory === '필수 복용' ? 'selected' : ''}" data-value="필수 복용" style="padding: 12px; border: 2px solid ${currentCategory === '필수 복용' ? '#f28282' : '#ddd'}; border-radius: 8px; background: ${currentCategory === '필수 복용' ? '#ffd0d0' : '#fff'}; cursor: pointer; font-size: 14px;">
-          🔴 필수 복용
-        </button>
-        <button class="category-option-btn ${currentCategory === '기간제' ? 'selected' : ''}" data-value="기간제" style="padding: 12px; border: 2px solid ${currentCategory === '기간제' ? '#8282f2' : '#ddd'}; border-radius: 8px; background: ${currentCategory === '기간제' ? '#d0d0ff' : '#fff'}; cursor: pointer; font-size: 14px;">
-          🔵 기간제
-        </button>
-        <button class="category-option-btn ${currentCategory === '건강보조제' ? 'selected' : ''}" data-value="건강보조제" style="padding: 12px; border: 2px solid ${currentCategory === '건강보조제' ? '#ffe12e' : '#ddd'}; border-radius: 8px; background: ${currentCategory === '건강보조제' ? '#fff7b0' : '#fff'}; cursor: pointer; font-size: 14px;">
-          🟡 건강보조제
-        </button>
+      <p style="margin-bottom: 15px; color: #666;">카테고리를 선택하거나 새로 추가하세요</p>
+      <div class="category-options" style="display: flex; flex-direction: column; gap: 10px; max-height: 300px; overflow-y: auto;">
+        ${categoryButtonsHTML}
       </div>
-      <div class="modal-btns" style="margin-top: 20px;">
-        <button class="cancel-modal-btn">취소</button>
+      
+      <div class="add-category-section" style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee;">
+        <p style="font-weight: 600; margin-bottom: 10px;">➕ 새 카테고리 추가</p>
+        <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+            <input type="text" id="newCategoryName" placeholder="카테고리 이름" 
+                style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;">
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 10px;">
+            <label style="font-size: 13px; color: #666;">색상:</label>
+            <input type="color" id="newCategoryColor" value="#82c8f2" 
+                style="width: 40px; height: 30px; border: none; cursor: pointer;">
+            <button id="addCategoryBtn" style="flex: 1; padding: 10px; background: #4c82ff; 
+                color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">
+                추가
+            </button>
+        </div>
+      </div>
+      
+      <div class="modal-btns" style="margin-top: 15px;">
+        <button class="cancel-modal-btn">닫기</button>
       </div>
     </div>
     `;
     document.body.appendChild(wrapper);
     
     // 카테고리 선택 이벤트
-    wrapper.querySelectorAll(".category-option-btn").forEach(btn => {
-        btn.addEventListener("click", async () => {
-            const newCategory = btn.dataset.value;
-            const color = typeColors[newCategory] || { light: "#e6d6ff", deep: "#a86af2" };
-            
-            // 같은 약(medicationId)의 모든 카드 업데이트
-            const allCardsWithSameId = document.querySelectorAll(`.drug-card[data-id="${medicationId}"]`);
-            allCardsWithSameId.forEach(card => {
-                // 카테고리 텍스트 업데이트
-                const categoryTextEl = card.querySelector(".category-text");
-                if (categoryTextEl) categoryTextEl.innerText = newCategory;
-                card.dataset.category = newCategory;
+    function attachCategoryEvents() {
+        wrapper.querySelectorAll(".category-option-btn").forEach(btn => {
+            btn.addEventListener("click", async () => {
+                const newCategory = btn.dataset.value;
+                const color = typeColors[newCategory] || { light: "#e6d6ff", deep: "#a86af2" };
                 
-                // 색상 업데이트
-                const lightEl = card.querySelector(".color-tool-red__lilight");
-                const deepEl = card.querySelector(".color-tool-red__deep");
-                if (lightEl) lightEl.style.background = color.light;
-                if (deepEl) deepEl.style.background = color.deep;
+                // 같은 약(medicationId)의 모든 카드 업데이트
+                const allCardsWithSameId = document.querySelectorAll(`.drug-card[data-id="${medicationId}"]`);
+                allCardsWithSameId.forEach(card => {
+                    const categoryTextEl = card.querySelector(".category-text");
+                    if (categoryTextEl) categoryTextEl.innerText = newCategory;
+                    card.dataset.category = newCategory;
+                    
+                    const lightEl = card.querySelector(".color-tool-red__lilight");
+                    const deepEl = card.querySelector(".color-tool-red__deep");
+                    if (lightEl) lightEl.style.background = color.light;
+                    if (deepEl) deepEl.style.background = color.deep;
+                });
+                
+                const success = await updateMedicineInfo(medicationId, cardElement, { category: newCategory });
+                
+                wrapper.remove();
+                
+                if (success) {
+                    showToastIfAvailable("카테고리가 변경되었습니다.", "success");
+                }
             });
-            
-            // 서버 업데이트 (updateMedicineInfo 사용 - category 포함)
-            const success = await updateMedicineInfo(medicationId, cardElement, { category: newCategory });
-            
-            wrapper.remove();
-            
-            if (success) {
-                showToastIfAvailable("카테고리가 변경되었습니다.", "success");
-            }
         });
+        
+        // 사용자 정의 카테고리 삭제 이벤트
+        wrapper.querySelectorAll(".delete-category-btn").forEach(btn => {
+            btn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                const categoryName = btn.dataset.category;
+                
+                if (confirm(`'${categoryName}' 카테고리를 삭제하시겠습니까?`)) {
+                    const customCategories = loadCustomCategories();
+                    delete customCategories[categoryName];
+                    saveCustomCategories(customCategories);
+                    typeColors = getTypeColors();
+                    
+                    // UI 새로고침
+                    btn.closest(".category-option-wrapper").remove();
+                    showToastIfAvailable("카테고리가 삭제되었습니다.", "success");
+                }
+            });
+        });
+    }
+    
+    attachCategoryEvents();
+    
+    // 새 카테고리 추가 이벤트
+    wrapper.querySelector("#addCategoryBtn").addEventListener("click", () => {
+        const nameInput = wrapper.querySelector("#newCategoryName");
+        const colorInput = wrapper.querySelector("#newCategoryColor");
+        const newName = nameInput.value.trim();
+        const newColor = colorInput.value;
+        
+        if (!newName) {
+            showToastIfAvailable("카테고리 이름을 입력하세요.", "error");
+            return;
+        }
+        
+        if (typeColors[newName]) {
+            showToastIfAvailable("이미 존재하는 카테고리입니다.", "error");
+            return;
+        }
+        
+        // 색상 밝게/진하게 계산
+        const lightColor = newColor + "40";  // 투명도 추가
+        const deepColor = newColor;
+        
+        // 사용자 정의 카테고리 저장
+        const customCategories = loadCustomCategories();
+        customCategories[newName] = { light: lightColor, deep: deepColor };
+        saveCustomCategories(customCategories);
+        typeColors = getTypeColors();
+        
+        // 옵션 목록에 추가
+        const optionsContainer = wrapper.querySelector(".category-options");
+        const newOptionHTML = `
+        <div class="category-option-wrapper" style="display: flex; align-items: center; gap: 8px;">
+            <button class="category-option-btn" data-value="${newName}" 
+                style="flex: 1; padding: 12px; border: 2px solid #ddd; 
+                border-radius: 8px; background: #fff; 
+                cursor: pointer; font-size: 14px; text-align: left;">
+                🏷️ ${newName}
+            </button>
+            <button class="delete-category-btn" data-category="${newName}" 
+                style="width: 32px; height: 32px; border: none; background: #ff4444; 
+                color: white; border-radius: 6px; cursor: pointer; font-size: 14px;">×</button>
+        </div>`;
+        optionsContainer.insertAdjacentHTML("beforeend", newOptionHTML);
+        
+        // 새로 추가된 버튼에 이벤트 연결
+        attachCategoryEvents();
+        
+        // 입력 필드 초기화
+        nameInput.value = "";
+        showToastIfAvailable(`'${newName}' 카테고리가 추가되었습니다.`, "success");
     });
     
-    // 취소 버튼
+    // 닫기 버튼
     wrapper.querySelector(".cancel-modal-btn").addEventListener("click", () => wrapper.remove());
     wrapper.addEventListener("click", (e) => { if (e.target === wrapper) wrapper.remove(); });
 }
