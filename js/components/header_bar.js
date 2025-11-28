@@ -379,7 +379,10 @@ const initNotificationPopup = () => {
                     ⚙️ 설정
                 </button>
             </div>
-            <button class="notif-popup__close" type="button" aria-label="닫기">×</button>
+            <div class="notif-popup__header-actions">
+                <button class="notif-popup__delete-all" type="button" title="모두 삭제">🗑️ 전체삭제</button>
+                <button class="notif-popup__close" type="button" aria-label="닫기">×</button>
+            </div>
         </div>
         <div class="notif-popup__content" data-content="notifications">
             <div class="notif-popup__body">
@@ -450,6 +453,7 @@ const initNotificationPopup = () => {
     const popupBody = popup.querySelector('.notif-popup__body');
     const closeBtn = popup.querySelector('.notif-popup__close');
     const readAllBtn = popup.querySelector('.notif-popup__read-all');
+    const deleteAllBtn = popup.querySelector('.notif-popup__delete-all');
     const tabs = popup.querySelectorAll('.notif-popup__tab');
     const contents = popup.querySelectorAll('.notif-popup__content');
     
@@ -580,6 +584,7 @@ const initNotificationPopup = () => {
                         <p class="notif-item__body">${escapeHtml(notif.body)}</p>
                         <p class="notif-item__time">${timeAgo}</p>
                     </div>
+                    <button class="notif-popup__item-delete" title="삭제">✕</button>
                 </div>
             `;
         }).join('');
@@ -588,12 +593,62 @@ const initNotificationPopup = () => {
 
         // 알림 아이템 클릭 이벤트
         popupBody.querySelectorAll('.notif-item').forEach(item => {
-            item.addEventListener('click', () => {
+            item.addEventListener('click', (e) => {
+                // 삭제 버튼 클릭 시 읽음 처리 안 함
+                if (e.target.classList.contains('notif-popup__item-delete')) return;
+                
                 const id = parseInt(item.dataset.id);
                 markAsRead(id);
                 item.classList.remove('is-unread');
             });
+            
+            // 삭제 버튼 이벤트
+            const deleteBtn = item.querySelector('.notif-popup__item-delete');
+            if (deleteBtn) {
+                deleteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const id = parseInt(item.dataset.id);
+                    deleteNotification(id);
+                    item.style.transform = 'translateX(100%)';
+                    item.style.opacity = '0';
+                    item.style.transition = 'all 0.2s';
+                    setTimeout(() => {
+                        item.remove();
+                        if (popupBody.querySelectorAll('.notif-item').length === 0) {
+                            renderEmpty();
+                        }
+                    }, 200);
+                });
+            }
         });
+    };
+    
+    // 알림 삭제
+    const deleteNotification = (id) => {
+        notifications = notifications.filter(n => n.id !== id);
+        updateNotifDot();
+        
+        // 로컬 스토리지에서도 삭제
+        try {
+            const stored = localStorage.getItem('mc_notifications') || '[]';
+            let savedNotifs = JSON.parse(stored);
+            savedNotifs = savedNotifs.filter(n => n.id !== id);
+            localStorage.setItem('mc_notifications', JSON.stringify(savedNotifs));
+        } catch (e) {}
+    };
+    
+    // 모든 알림 삭제
+    const deleteAllNotifications = () => {
+        if (!confirm('모든 알림을 삭제하시겠습니까?')) return;
+        
+        notifications = [];
+        localStorage.removeItem('mc_notifications');
+        renderEmpty();
+        updateNotifDot();
+        
+        if (typeof showToast === 'function') {
+            showToast('모든 알림이 삭제되었습니다.', { type: 'info' });
+        }
     };
 
     // 알림 아이콘 반환
@@ -857,6 +912,7 @@ const initNotificationPopup = () => {
 
     closeBtn.addEventListener('click', closePopup);
     readAllBtn.addEventListener('click', markAllAsRead);
+    deleteAllBtn.addEventListener('click', deleteAllNotifications);
 
     // 외부 클릭 시 닫기
     document.addEventListener('click', (e) => {

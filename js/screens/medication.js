@@ -198,6 +198,48 @@ async function recordIntake(scheduleId, status = "TAKEN", lateMinutes = null) {
 
 
 // ==================================================
+// 🔹 [알림] 복용 기록 삭제 (DELETE /api/logs/{logId})
+// ==================================================
+async function deleteIntakeLog(logId) {
+    if (!logId) {
+        console.error("deleteIntakeLog: logId가 없습니다.");
+        return false;
+    }
+
+    try {
+        console.log(`[복용취소] DELETE /api/logs/${logId}`);
+        
+        const response = await fetch(`${API_BASE_URL}/api/logs/${logId}`, {
+            method: "DELETE",
+            headers: getAuthHeaders()
+        });
+
+        console.log(`[복용취소] 응답 상태: ${response.status}`);
+
+        if (response.status === 204 || response.ok) {
+            // 204 No Content = 성공
+            console.log("[복용취소] 삭제 성공");
+            return true;
+        }
+
+        if (response.status === 404) {
+            window.showToast?.("삭제할 기록을 찾을 수 없습니다.", { type: "error" }) || alert("삭제할 기록을 찾을 수 없습니다.");
+            return false;
+        }
+
+        const errorText = await response.text().catch(() => '');
+        console.error("[복용취소] 삭제 실패:", response.status, errorText);
+        window.showToast?.("복용 기록 삭제에 실패했습니다.", { type: "error" }) || alert("복용 기록 삭제에 실패했습니다.");
+        return false;
+    } catch (e) {
+        console.error("deleteIntakeLog 호출 중 오류:", e);
+        window.showToast?.("네트워크 오류로 복용 기록을 삭제하지 못했습니다.", { type: "error" }) || alert("네트워크 오류로 복용 기록을 삭제하지 못했습니다.");
+        return false;
+    }
+}
+
+
+// ==================================================
 // 🔹 카드 생성 및 DOM 삽입
 // ==================================================
 function createCard(cardData) {
@@ -300,6 +342,17 @@ function createCard(cardData) {
 
         if (logRecorded) {
             showToastIfAvailable("복용이 기록되었습니다.", "success");
+            
+            // 재고 부족 확인 (복용 후 재고)
+            const newStock = currentStock - dose;
+            const threshold = parseInt(newCard.dataset.refillThreshold) || 5;
+            const medName = newCard.querySelector('.title-1')?.textContent || '약';
+            
+            // MediNotification이 있으면 재고 부족 알림 표시
+            if (typeof MediNotification !== 'undefined' && MediNotification.stockWarning) {
+                MediNotification.stockWarning(medName, newStock, threshold);
+            }
+            
             window.location.reload();
         } else {
             alert("기록 실패");
@@ -380,6 +433,17 @@ function createCard(cardData) {
 
         if (logRecorded) {
             showToastIfAvailable(`지각 복용이 기록되었습니다. (${lateMinutes}분 지연)`, "warning");
+            
+            // 재고 부족 확인 (복용 후 재고)
+            const newStock = currentStock - dose;
+            const threshold = parseInt(newCard.dataset.refillThreshold) || 5;
+            const medName = newCard.querySelector('.title-1')?.textContent || '약';
+            
+            // MediNotification이 있으면 재고 부족 알림 표시
+            if (typeof MediNotification !== 'undefined' && MediNotification.stockWarning) {
+                MediNotification.stockWarning(medName, newStock, threshold);
+            }
+            
             window.location.reload();
         } else {
             alert("기록 실패");
