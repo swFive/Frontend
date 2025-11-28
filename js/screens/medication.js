@@ -611,39 +611,71 @@ function showToastIfAvailable(message, type = "success") {
 // ==================================================
 // 🔹 [C] 약 등록 (POST)
 // ==================================================
-function showAddForm() {
+async function showAddForm() {
     // 카테고리 옵션 동적 생성
     typeColors = getTypeColors();
     const categoryOptions = Object.keys(typeColors)
         .map(name => `<option value="${name}">${name}</option>`)
         .join("");
     
-    // 기존 약 목록 수집 (중복 제거)
+    // API에서 모든 약 목록 가져오기 (요일과 상관없이)
+    let allMedications = [];
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/mediinfo/medicines`, {
+            method: "GET",
+            headers: getAuthHeaders()
+        });
+        if (response.ok) {
+            allMedications = await response.json();
+        }
+    } catch (e) {
+        console.error("[Medication] 약 목록 조회 실패:", e);
+    }
+    
+    // 기존 약 목록 수집 (중복 제거, 주기가 끝난 약 제외)
     const existingMeds = {};
-    document.querySelectorAll(".drug-card").forEach(card => {
-        const medId = card.dataset.id;
+    const todayStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    
+    allMedications.forEach(item => {
+        const medId = item.medicationId;
         if (!existingMeds[medId]) {
-            const times = [];
-            document.querySelectorAll(`.drug-card[data-id="${medId}"] .time-item`).forEach(t => {
-                const timeStr = t.innerText.trim();
-                if (timeStr && !times.includes(timeStr)) times.push(timeStr);
+            const schedules = item.schedulesWithLogs || [];
+            
+            // 유효한 스케줄이 하나라도 있는지 확인 (endDate가 없거나 오늘 이후인 스케줄)
+            const hasValidSchedule = schedules.some(s => {
+                if (!s.endDate) return true; // 종료일이 없으면 유효
+                return s.endDate >= todayStr; // 종료일이 오늘 이후면 유효
             });
+            
+            // 스케줄이 없거나 모든 스케줄의 주기가 끝났으면 제외
+            if (schedules.length === 0 || !hasValidSchedule) {
+                console.log(`[Medication] 제외됨 (주기 종료): ${item.name}`);
+                return;
+            }
+            
+            const times = schedules
+                .map(s => s.intakeTime ? s.intakeTime.substring(0, 5) : "")
+                .filter(t => t);
+            const uniqueTimes = [...new Set(times)];
+            const frequency = schedules[0]?.frequency || "매일";
             
             existingMeds[medId] = {
                 id: medId,
-                name: card.querySelector(".drug-info__title p")?.innerText || "",
-                category: card.dataset.category || "필수 복용",
-                days: card.querySelector(".rule")?.innerText || "매일",
-                times: times.join(", "),
-                doseCount: card.dataset.doseCount || "1",
-                stock: card.dataset.stock || "30",
-                memo: card.querySelector(".drug-info__list p")?.innerText || "",
-                startDate: card.querySelector(".start-date")?.innerText || "",
-                endDate: card.querySelector(".end-date")?.innerText || ""
+                name: item.name || "",
+                category: item.category || "필수 복용",
+                days: frequency,
+                times: uniqueTimes.join(", "),
+                doseCount: item.doseUnitQuantity || 1,
+                stock: item.currentQuantity || 30,
+                memo: item.memo || "",
+                startDate: schedules[0]?.startDate || "",
+                endDate: schedules[0]?.endDate || ""
             };
         }
     });
     const existingMedsList = Object.values(existingMeds);
+    
+    console.log("[Medication] 유효한 약 목록:", existingMedsList.length, "개");
     
     // 기존 약 텍스트 목록 HTML
     let existingMedsText = "";
