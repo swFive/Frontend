@@ -575,7 +575,32 @@ function showAddForm() {
     <div class="modal">
       <h3>💊 새 약 추가</h3>
       <label>약 이름 <input type="text" id="drugName" placeholder="예: 타이레놀"></label>
-      <label>카테고리 <select id="drugType">${categoryOptions}</select></label>
+      <label>카테고리 
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <select id="drugType" style="flex: 1;">${categoryOptions}</select>
+          <button type="button" id="addCategoryBtnInForm" 
+            style="padding: 8px 12px; background: #4c82ff; color: white; border: none; 
+            border-radius: 6px; cursor: pointer; font-size: 14px; white-space: nowrap;">+ 추가</button>
+        </div>
+      </label>
+      
+      <!-- 카테고리 추가 영역 (기본 숨김) -->
+      <div id="newCategorySection" style="display: none; background: #f8f9fa; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
+        <p style="font-size: 13px; font-weight: 600; margin-bottom: 8px;">➕ 새 카테고리</p>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <input type="text" id="newCatName" placeholder="카테고리 이름" 
+            style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;">
+          <input type="color" id="newCatColor" value="#82c8f2" 
+            style="width: 36px; height: 32px; border: none; cursor: pointer;">
+          <button type="button" id="confirmNewCat" 
+            style="padding: 8px 12px; background: #28a745; color: white; border: none; 
+            border-radius: 6px; cursor: pointer; font-size: 13px;">확인</button>
+          <button type="button" id="cancelNewCat" 
+            style="padding: 8px 12px; background: #6c757d; color: white; border: none; 
+            border-radius: 6px; cursor: pointer; font-size: 13px;">취소</button>
+        </div>
+      </div>
+      
       <label>주기(요일) <input type="text" id="drugDays" placeholder="예: 월,수,금 (쉼표구분)"></label>
       <label>시간 <input type="text" id="drugTimes" placeholder="예: 09:00, 18:00"></label>
       <label>1회 복용량 <input type="number" id="doseCount" value="1"></label>
@@ -592,6 +617,58 @@ function showAddForm() {
     const today = new Date().toISOString().split('T')[0];
     wrapper.querySelector("#startDate").value = today;
     wrapper.querySelector("#endDate").value = "2025-12-31";
+
+    // 카테고리 추가 버튼 클릭 시 입력 영역 표시
+    const newCatSection = wrapper.querySelector("#newCategorySection");
+    wrapper.querySelector("#addCategoryBtnInForm").onclick = () => {
+        newCatSection.style.display = "block";
+    };
+    
+    // 새 카테고리 취소
+    wrapper.querySelector("#cancelNewCat").onclick = () => {
+        newCatSection.style.display = "none";
+        wrapper.querySelector("#newCatName").value = "";
+    };
+    
+    // 새 카테고리 확인
+    wrapper.querySelector("#confirmNewCat").onclick = () => {
+        const newName = wrapper.querySelector("#newCatName").value.trim();
+        const newColor = wrapper.querySelector("#newCatColor").value;
+        
+        if (!newName) {
+            showToastIfAvailable("카테고리 이름을 입력하세요.", "error");
+            return;
+        }
+        
+        // 중복 검사
+        typeColors = getTypeColors();
+        if (typeColors[newName]) {
+            showToastIfAvailable("카테고리가 존재합니다. 다른 카테고리를 적어주세요.", "error");
+            return;
+        }
+        
+        // 새 카테고리 저장
+        const lightColor = newColor + "40";
+        const deepColor = newColor;
+        const customCategories = loadCustomCategories();
+        customCategories[newName] = { light: lightColor, deep: deepColor };
+        saveCustomCategories(customCategories);
+        typeColors = getTypeColors();
+        
+        // select에 옵션 추가하고 선택
+        const select = wrapper.querySelector("#drugType");
+        const newOption = document.createElement("option");
+        newOption.value = newName;
+        newOption.textContent = newName;
+        select.appendChild(newOption);
+        select.value = newName;
+        
+        // 입력 영역 숨기기
+        newCatSection.style.display = "none";
+        wrapper.querySelector("#newCatName").value = "";
+        
+        showToastIfAvailable(`'${newName}' 카테고리가 추가되었습니다.`, "success");
+    };
 
     wrapper.querySelector("#cancelBtn").onclick = () => wrapper.remove();
 
