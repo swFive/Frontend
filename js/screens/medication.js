@@ -1157,6 +1157,53 @@ function showFieldEditor(cardElement, cardData, field) {
                 
                 // 현재 카드의 시간 (원본)
                 const currentTime = cardElement.querySelector(".time-item")?.innerText || "";
+                const currentScheduleId = cardElement.dataset.scheduleId;
+                
+                // 같은 약의 기존 시간들 수집 (현재 편집 중인 스케줄 제외)
+                const existingTimes = [];
+                document.querySelectorAll(`.drug-card[data-id="${medicationId}"]`).forEach(card => {
+                    const scheduleId = card.dataset.scheduleId;
+                    // 현재 편집 중인 카드의 스케줄은 제외
+                    if (scheduleId !== currentScheduleId) {
+                        const timeEl = card.querySelector(".time-item");
+                        if (timeEl) {
+                            existingTimes.push(timeEl.innerText.trim());
+                        }
+                    }
+                });
+                console.log("[Time] 기존 시간들 (현재 편집 중 제외):", existingTimes);
+                
+                // 중복 시간 검사 (첫 번째 시간은 현재 스케줄 업데이트이므로 제외)
+                const duplicateTimes = [];
+                for (let i = 1; i < newTimes.length; i++) {
+                    const time = newTimes[i];
+                    // 기존 시간과 비교
+                    if (existingTimes.includes(time)) {
+                        duplicateTimes.push(time);
+                    }
+                    // 첫 번째 시간(업데이트될 시간)과도 비교
+                    if (time === newTimes[0]) {
+                        duplicateTimes.push(time);
+                    }
+                }
+                
+                // 입력한 시간들 중 중복 검사
+                const inputTimesSet = new Set();
+                let hasDuplicateInput = false;
+                for (const time of newTimes) {
+                    if (inputTimesSet.has(time)) {
+                        hasDuplicateInput = true;
+                        duplicateTimes.push(time);
+                    }
+                    inputTimesSet.add(time);
+                }
+                
+                if (duplicateTimes.length > 0 || hasDuplicateInput) {
+                    showToastIfAvailable("같은 시간대에 약이 존재합니다. 시간을 다시 선택해주세요.", "error");
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = "저장";
+                    return;
+                }
                 
                 // 현재 카드의 스케줄 정보
                 const scheduleData = JSON.parse(cardElement.dataset.schedules || "[]")[0] || {};
