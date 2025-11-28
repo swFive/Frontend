@@ -126,6 +126,12 @@
                 window.updateHeaderLoginState();
             }
 
+            // 4. FCM 토큰 등록 (알림 기능 활성화)
+            if (typeof window.initFcmToken === 'function') {
+                console.log("🔔 FCM 토큰 등록 시작");
+                window.initFcmToken();
+            }
+
             // (선택) 로그인 완료 후 메인으로 보내려면 아래 주석 해제
             // window.location.replace("/");
 

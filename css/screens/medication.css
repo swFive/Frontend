@@ -97,9 +97,9 @@
 }
 .drug-info__title {
   display: flex;
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   width: 100%;
-  min-height: 1px;
+  min-height: 36px;
   min-width: 1px;
   justify-content: center;
   align-items: center;
@@ -112,9 +112,9 @@
 }
 .drug-info__subtitle {
   display: flex;
-  flex: 1 1 0;
+  flex: 0 0 auto;
   width: 100%;
-  min-height: 1px;
+  min-height: 32px;
   min-width: 1px;
   justify-content: center;
   align-items: center;
@@ -125,9 +125,9 @@
 }
 .drug-info__list {
   display: flex;
-  flex: 1 1 0;
+  flex: 0 0 auto;
   width: 100%;
-  min-height: 1px;
+  min-height: 20px;
   min-width: 1px;
   justify-content: center;
   align-items: center;
@@ -172,13 +172,13 @@ select.inline-select {
 }
 .drug-rule-info__row {
   display: flex;
-  flex: 1 1 0;
+  flex: 0 0 auto;
   width: 100%;
-  min-height: 1px;
+  min-height: 16px;
   min-width: 1px;
   justify-content: flex-start;
   align-items: center;
-  line-height: 0; /* match leading[0] */
+  line-height: 1.3;
   font-weight: 500; /* Medium */
   font-size: 10.769px;
   letter-spacing: -0.2154px;
@@ -245,8 +245,8 @@ select.inline-select {
     align-items: stretch;
     justify-content: center;
     text-align: center;
-    height: 50px;
-    
+    height: auto;
+    min-height: var(--drug-card-height);
     gap: 16px;
   }
 
@@ -262,17 +262,19 @@ select.inline-select {
     order: 1;
     width: clamp(150px, 52%, 200px);
     min-width: 150px;
-    height: 120px;
-    flex: 0 0 10px;
-    overflow: hidden;
+    height: auto;
+    flex: 1 1 auto;
+    overflow: visible;
     margin: 0;
     align-self: center;
+    gap: 8px;
   }
 
   .drug-info__title {
     font-size: var(--drug-info-title-size);
     flex-wrap: wrap;
     line-height: 1.2;
+    min-height: 32px;
   }
 
   .drug-info__title::after {
@@ -287,6 +289,7 @@ select.inline-select {
   .drug-info__subtitle {
     font-size: var(--drug-info-subtitle-size);
     line-height: 1.3;
+    min-height: 36px;
   }
 
   .drug-info__list {
@@ -294,15 +297,16 @@ select.inline-select {
     line-height: 1.4;
     flex-wrap: wrap;
     gap: 6px;
+    min-height: 18px;
   }
 
   .drug-rule-info {
     order: 2;
     width: clamp(150px, 48%, 210px);
     min-width: 150px;
-    height: 100%;
-    padding: 0 12px;
-    gap: 10px;
+    height: auto;
+    padding: 10px 12px;
+    gap: 6px;
   }
 
   .stock-row {
@@ -311,10 +315,12 @@ select.inline-select {
   }
 
   .drug-rule-info__row {
-    line-height: 1.3;
-    font-size: 12px;
+    line-height: 1.4;
+    font-size: 11px;
     justify-content: center;
     gap: 6px;
+    min-height: 18px;
+    flex: 0 0 auto;
   }
 
   .add-card {
@@ -634,6 +640,39 @@ select.inline-select {
 
 /* ===== 반응형: 작은 모바일 (480px 이하) ===== */
 @media (max-width: 480px) {
+    .drug-card {
+        --drug-card-height: 260px;
+        padding: 20px 16px;
+    }
+
+    .drug-info {
+        gap: 6px;
+    }
+
+    .drug-info__title {
+        min-height: 28px;
+        font-size: 22px;
+    }
+
+    .drug-info__subtitle {
+        min-height: 32px;
+    }
+
+    .drug-info__list {
+        min-height: 16px;
+    }
+
+    .drug-rule-info {
+        gap: 4px;
+        padding: 8px 10px;
+    }
+
+    .drug-rule-info__row {
+        font-size: 10px;
+        min-height: 16px;
+        line-height: 1.4;
+    }
+
     .intake-status {
         font-size: 11px;
     }
@@ -653,5 +692,371 @@ select.inline-select {
         flex: 0 0 calc(50% - 2px);
         padding: 6px 6px;
         font-size: 9px;
+    }
+}
+
+/* ===== 스케줄 편집 모달 스타일 ===== */
+.modal--schedule {
+    width: 400px;
+    max-width: 95vw;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 24px;
+}
+
+.modal--schedule h3 {
+    font-size: 18px;
+    margin-bottom: 20px;
+    color: #1e293b;
+}
+
+.modal--small {
+    width: 300px;
+    padding: 20px;
+}
+
+/* 스케줄 섹션 */
+.schedule-section {
+    margin-bottom: 20px;
+    padding: 16px;
+    background: #f8fafc;
+    border-radius: 12px;
+    border: 2px solid transparent;
+    transition: border-color 0.2s, background 0.2s;
+}
+
+.schedule-section.is-focused {
+    border-color: #3b82f6;
+    background: #eff6ff;
+}
+
+.schedule-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #334155;
+    margin-bottom: 12px;
+}
+
+.schedule-label__icon {
+    font-size: 16px;
+}
+
+/* 요일 선택 칩 */
+.day-selector {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.day-chip {
+    display: flex;
+    cursor: pointer;
+}
+
+.day-chip input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.day-chip span {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #fff;
+    border: 2px solid #e2e8f0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #64748b;
+    transition: all 0.2s ease;
+}
+
+.day-chip input:checked + span {
+    background: linear-gradient(135deg, #3b82f6, #60a5fa);
+    border-color: #3b82f6;
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.day-chip:hover span {
+    border-color: #94a3b8;
+}
+
+/* 요일 프리셋 버튼 */
+.day-presets {
+    display: flex;
+    gap: 8px;
+}
+
+.preset-btn {
+    padding: 6px 14px;
+    border: 1px solid #e2e8f0;
+    border-radius: 20px;
+    background: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.preset-btn:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: #334155;
+}
+
+/* 시간 입력 */
+.time-inputs {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.time-input-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.time-input {
+    flex: 1;
+    padding: 12px 16px;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #1e293b;
+    background: #fff;
+    transition: border-color 0.2s;
+}
+
+.time-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+}
+
+.remove-time-btn {
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 50%;
+    background: #fee2e2;
+    color: #ef4444;
+    font-size: 18px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.remove-time-btn:hover {
+    background: #fecaca;
+}
+
+.add-time-btn {
+    padding: 10px 16px;
+    border: 2px dashed #cbd5e1;
+    border-radius: 10px;
+    background: transparent;
+    font-size: 14px;
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.add-time-btn:hover {
+    border-color: #3b82f6;
+    color: #3b82f6;
+    background: #eff6ff;
+}
+
+/* 기간 입력 */
+.period-inputs {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.period-inputs input[type="date"] {
+    flex: 1;
+    padding: 12px 14px;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #1e293b;
+    background: #fff;
+    transition: border-color 0.2s;
+}
+
+.period-inputs input[type="date"]:focus {
+    outline: none;
+    border-color: #3b82f6;
+}
+
+.period-separator {
+    font-size: 16px;
+    font-weight: 600;
+    color: #94a3b8;
+}
+
+/* 복용량 입력 그룹 */
+.dose-input-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.dose-btn {
+    width: 40px;
+    height: 40px;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    background: #fff;
+    font-size: 20px;
+    font-weight: 700;
+    color: #334155;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.dose-btn:hover {
+    background: #f1f5f9;
+    border-color: #3b82f6;
+    color: #3b82f6;
+}
+
+.dose-input-group input[type="number"] {
+    width: 70px;
+    padding: 10px;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    font-size: 18px;
+    font-weight: 700;
+    text-align: center;
+    color: #1e293b;
+}
+
+.dose-input-group input[type="number"]:focus {
+    outline: none;
+    border-color: #3b82f6;
+}
+
+.dose-unit {
+    font-size: 16px;
+    font-weight: 600;
+    color: #64748b;
+    margin-left: 4px;
+}
+
+/* 버튼 스타일 개선 */
+.btn-row {
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+.btn-cancel {
+    flex: 1;
+    padding: 12px 20px;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    background: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-cancel:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+}
+
+.btn-save {
+    flex: 1;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 4px 14px rgba(59, 130, 246, 0.35);
+}
+
+.btn-save:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.45);
+}
+
+/* editable 요소 호버 효과 강화 */
+.drug-rule-info .editable {
+    cursor: pointer;
+    padding: 2px 6px;
+    margin: -2px -6px;
+    border-radius: 6px;
+    transition: background 0.2s, color 0.2s;
+}
+
+.drug-rule-info .editable:hover {
+    background: rgba(59, 130, 246, 0.15);
+    color: #3b82f6;
+}
+
+.drug-rule-info__row.time.editable {
+    padding: 4px 8px;
+    margin: -4px -8px;
+    border-radius: 8px;
+}
+
+.drug-rule-info__row.period.editable {
+    padding: 4px 8px;
+    margin: -4px -8px;
+    border-radius: 8px;
+}
+
+/* 반응형 모달 */
+@media (max-width: 480px) {
+    .modal--schedule {
+        width: 100%;
+        max-width: 100%;
+        margin: 16px;
+        padding: 20px;
+        border-radius: 16px;
+    }
+
+    .day-chip span {
+        width: 36px;
+        height: 36px;
+        font-size: 13px;
+    }
+
+    .period-inputs {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .period-separator {
+        text-align: center;
     }
 }
