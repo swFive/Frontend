@@ -99,6 +99,15 @@ async function loadCards() {
 
                 const firstSch = schedules[0] || {};
 
+                // 모든 스케줄 ID와 정보 저장
+                const scheduleInfos = schedules.map(s => ({
+                    scheduleId: s.scheduleId,
+                    intakeTime: s.intakeTime ? s.intakeTime.substring(0, 5) : "",
+                    frequency: s.frequency || "매일",
+                    startDate: s.startDate || "",
+                    endDate: s.endDate || ""
+                }));
+
                 const cardData = {
                     id: item.medicationId,
                     title: item.name,
@@ -116,7 +125,8 @@ async function loadCards() {
                     takenCountToday: takenCount,
                     nextScheduleId: nextScheduleId,
                     lastLogId: lastLogId,
-                    refillThreshold: 5
+                    refillThreshold: 5,
+                    schedules: scheduleInfos  // 모든 스케줄 정보 저장
                 };
 
                 createCard(cardData);
@@ -204,6 +214,7 @@ function createCard(cardData) {
     newCard.dataset.refillThreshold = cardData.refillThreshold;
     newCard.dataset.takenCount = cardData.takenCountToday;
     newCard.dataset.totalTimes = cardData.dailyTimes;
+    newCard.dataset.schedules = JSON.stringify(cardData.schedules || []);  // 스케줄 정보 저장
 
     const color = typeColors[cardData.subtitle] || { light: "#e6d6ff", deep: "#a86af2" };
     const timeHTML = cardData.time.map(t => `<p class="time-item">${t}</p>`).join("");
@@ -237,12 +248,12 @@ function createCard(cardData) {
     </div>
 
     <div class="drug-rule-info">
-      <div class="drug-rule-info__row"><p class="rule editable" data-field="rule" title="클릭하여 수정">${cardData.rule}</p></div>
-      <div class="drug-rule-info__row time editable" data-field="time" title="클릭하여 수정">${timeHTML}</div>
+      <div class="drug-rule-info__row editable-row" data-field="rule" title="클릭하여 수정"><p class="rule">${cardData.rule}</p></div>
+      <div class="drug-rule-info__row time editable-row" data-field="time" title="클릭하여 수정">${timeHTML}</div>
       <div class="drug-rule-info__row"><p class="next">${cardData.next}</p></div>
-      <div class="drug-rule-info__row"><p class="dose editable" data-field="dose" title="클릭하여 수정">${cardData.dose}</p>정</div>
-      <div class="drug-rule-info__row stock-row">재고: <span class="stock">${cardData.stock}</span>정</div>
-      <div class="drug-rule-info__row period editable" data-field="period" title="클릭하여 수정">기간: <span class="start-date">${cardData.startDate}</span> ~ <span class="end-date">${cardData.endDate}</span></div>
+      <div class="drug-rule-info__row editable-row" data-field="dose" title="클릭하여 수정"><p class="dose">${cardData.dose}</p>정</div>
+      <div class="drug-rule-info__row stock-row editable-row" data-field="stock" title="클릭하여 수정">재고: <span class="stock">${cardData.stock}</span>정</div>
+      <div class="drug-rule-info__row period editable-row" data-field="period" title="클릭하여 수정">기간: <span class="start-date">${cardData.startDate}</span> ~ <span class="end-date">${cardData.endDate}</span></div>
       <div class="drug-rule-info__row intake-status">
         <span class="intake-progress">${isDone ? "✅ 완료" : `${takenCount}/${totalTimes} 복용`}</span>
       </div>
@@ -415,32 +426,14 @@ function createCard(cardData) {
     makeEditable(newCard.querySelector(".drug-info__title p"), newCard, "name");
     makeEditable(newCard.querySelector(".drug-info__list p"), newCard, "memo");
 
-    // 복용량 클릭 시 인라인 수정
-    const doseEl = newCard.querySelector(".dose");
-    doseEl.addEventListener("click", (e) => {
-        e.stopPropagation();
-        showDoseEditor(newCard, doseEl);
-    });
-
-    // 요일 클릭 시 편집 모달
-    const ruleEl = newCard.querySelector(".rule");
-    ruleEl.addEventListener("click", (e) => {
-        e.stopPropagation();
-        showScheduleEditor(newCard, cardData, "rule");
-    });
-
-    // 시간 클릭 시 편집 모달
-    const timeRow = newCard.querySelector(".drug-rule-info__row.time");
-    timeRow.addEventListener("click", (e) => {
-        e.stopPropagation();
-        showScheduleEditor(newCard, cardData, "time");
-    });
-
-    // 기간 클릭 시 편집 모달
-    const periodRow = newCard.querySelector(".period");
-    periodRow.addEventListener("click", (e) => {
-        e.stopPropagation();
-        showScheduleEditor(newCard, cardData, "period");
+    // drug-rule-info__row 클릭 수정 이벤트
+    newCard.querySelectorAll(".editable-row").forEach(row => {
+        row.style.cursor = "pointer";
+        row.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const field = row.dataset.field;
+            showFieldEditor(newCard, cardData, field);
+        });
     });
 
     if (grid && addBtn) grid.insertBefore(newCard, addBtn);
@@ -555,6 +548,8 @@ async function updateMedicationData(cardElement, changes) {
         return false;
     }
 
+    console.log("[MedData] PATCH 요청:", `${API_BASE_URL}/api/medications/${id}`, payload);
+
     try {
         const res = await fetch(`${API_BASE_URL}/api/medications/${id}`, {
             method: "PATCH",
@@ -562,17 +557,31 @@ async function updateMedicationData(cardElement, changes) {
             body: JSON.stringify(payload)
         });
 
+        console.log("[MedData] 응답 상태:", res.status);
+
         if (res.status === 400) {
-            alert("재고/복용량/리필 임계치 값이 잘못되었습니다.");
+            const errBody = await res.text().catch(() => "");
+            console.error("[MedData] 400 에러:", errBody);
+            showToastIfAvailable("입력값이 잘못되었습니다.", "error");
             return false;
         }
         if (res.status === 404) {
-            alert("해당 약 정보를 찾을 수 없습니다.");
+            console.error("[MedData] 404 에러: 약을 찾을 수 없음");
+            showToastIfAvailable("해당 약 정보를 찾을 수 없습니다.", "error");
             return false;
         }
-        return res.ok;
+        if (!res.ok) {
+            const errBody = await res.text().catch(() => "");
+            console.error("[MedData] 에러:", res.status, errBody);
+            showToastIfAvailable(`서버 오류 (${res.status})`, "error");
+            return false;
+        }
+        
+        console.log("[MedData] 업데이트 성공");
+        return true;
     } catch (e) {
-        console.error(e);
+        console.error("[MedData] 네트워크 오류:", e);
+        showToastIfAvailable("네트워크 오류가 발생했습니다.", "error");
         return false;
     }
 }
@@ -640,314 +649,429 @@ function showStockEditor(cardElement) {
 }
 
 // ==================================================
-// 🔹 복용량 인라인 수정
+// 🔹 필드별 편집 모달
 // ==================================================
-function showDoseEditor(cardElement, doseEl) {
-    const currentDose = parseInt(doseEl.innerText) || 1;
-    
-    const wrapper = document.createElement("div");
-    wrapper.className = "modal-bg";
-    wrapper.innerHTML = `
-    <div class="modal modal--small">
-        <h3>💊 1회 복용량 수정</h3>
-        <label>
-            복용량
-            <div class="dose-input-group">
-                <button type="button" class="dose-btn dose-minus">−</button>
-                <input type="number" id="newDose" value="${currentDose}" min="1" max="99">
-                <button type="button" class="dose-btn dose-plus">+</button>
-                <span class="dose-unit">정</span>
-            </div>
-        </label>
-        <div class="btn-row">
-            <button id="cancelDose" class="btn-cancel">취소</button>
-            <button id="saveDose" class="btn-save">저장</button>
-        </div>
-    </div>`;
-    document.body.appendChild(wrapper);
-
-    const input = wrapper.querySelector("#newDose");
-    const minusBtn = wrapper.querySelector(".dose-minus");
-    const plusBtn = wrapper.querySelector(".dose-plus");
-
-    minusBtn.onclick = () => {
-        const val = parseInt(input.value) || 1;
-        if (val > 1) input.value = val - 1;
-    };
-    plusBtn.onclick = () => {
-        const val = parseInt(input.value) || 1;
-        if (val < 99) input.value = val + 1;
-    };
-
-    wrapper.querySelector("#cancelDose").onclick = () => wrapper.remove();
-    wrapper.querySelector("#saveDose").onclick = async () => {
-        const newDose = parseInt(input.value);
-        if (isNaN(newDose) || newDose < 1) {
-            alert("1 이상의 값을 입력해주세요.");
-            return;
-        }
-        if (await updateMedicationData(cardElement, { doseUnitQuantity: newDose })) {
-            cardElement.dataset.doseCount = newDose;
-            doseEl.innerText = newDose;
-            wrapper.remove();
-            showToastIfAvailable("복용량이 수정되었습니다.", "success");
-        }
-    };
-
-    // 모달 외부 클릭 시 닫기
-    wrapper.addEventListener("click", (e) => {
-        if (e.target === wrapper) wrapper.remove();
-    });
-}
-
-// ==================================================
-// 🔹 스케줄 편집 모달 (요일/시간/기간)
-// ==================================================
-function showScheduleEditor(cardElement, cardData, focusField = "rule") {
+function showFieldEditor(cardElement, cardData, field) {
     const medicationId = cardElement.dataset.id;
     const name = cardElement.querySelector(".drug-info__title p").innerText;
     
     // 현재 값 가져오기
     const currentRule = cardElement.querySelector(".rule")?.innerText || "매일";
     const timeItems = cardElement.querySelectorAll(".time-item");
-    const currentTimes = Array.from(timeItems).map(t => t.innerText.trim()).join(", ");
+    const currentTimes = Array.from(timeItems).map(t => t.innerText.trim()).join(",");
+    const currentDose = parseInt(cardElement.querySelector(".dose")?.innerText) || 1;
+    const currentStock = parseInt(cardElement.dataset.stock) || 0;
     const startDate = cardElement.querySelector(".start-date")?.innerText || "";
     const endDate = cardElement.querySelector(".end-date")?.innerText || "";
 
     const wrapper = document.createElement("div");
     wrapper.className = "modal-bg";
-    wrapper.innerHTML = `
-    <div class="modal modal--schedule">
-        <h3>📅 ${name} 스케줄 수정</h3>
-        
-        <div class="schedule-section ${focusField === 'rule' ? 'is-focused' : ''}">
-            <label class="schedule-label">
-                <span class="schedule-label__icon">📆</span>
-                복용 요일
-            </label>
-            <div class="day-selector">
-                <label class="day-chip"><input type="checkbox" value="월" ${currentRule.includes("월") || currentRule === "매일" || currentRule === "DAILY" ? "checked" : ""}><span>월</span></label>
-                <label class="day-chip"><input type="checkbox" value="화" ${currentRule.includes("화") || currentRule === "매일" || currentRule === "DAILY" ? "checked" : ""}><span>화</span></label>
-                <label class="day-chip"><input type="checkbox" value="수" ${currentRule.includes("수") || currentRule === "매일" || currentRule === "DAILY" ? "checked" : ""}><span>수</span></label>
-                <label class="day-chip"><input type="checkbox" value="목" ${currentRule.includes("목") || currentRule === "매일" || currentRule === "DAILY" ? "checked" : ""}><span>목</span></label>
-                <label class="day-chip"><input type="checkbox" value="금" ${currentRule.includes("금") || currentRule === "매일" || currentRule === "DAILY" ? "checked" : ""}><span>금</span></label>
-                <label class="day-chip"><input type="checkbox" value="토" ${currentRule.includes("토") || currentRule === "매일" || currentRule === "DAILY" ? "checked" : ""}><span>토</span></label>
-                <label class="day-chip"><input type="checkbox" value="일" ${currentRule.includes("일") && !currentRule.includes("매일") || currentRule === "매일" || currentRule === "DAILY" ? "checked" : ""}><span>일</span></label>
-            </div>
-            <div class="day-presets">
-                <button type="button" class="preset-btn" data-preset="all">매일</button>
-                <button type="button" class="preset-btn" data-preset="weekday">평일</button>
-                <button type="button" class="preset-btn" data-preset="weekend">주말</button>
-            </div>
-        </div>
-
-        <div class="schedule-section ${focusField === 'time' ? 'is-focused' : ''}">
-            <label class="schedule-label">
-                <span class="schedule-label__icon">⏰</span>
-                복용 시간
-            </label>
-            <div class="time-inputs" id="timeInputs">
-                <!-- 동적으로 추가됨 -->
-            </div>
-            <button type="button" class="add-time-btn" id="addTimeBtn">+ 시간 추가</button>
-        </div>
-
-        <div class="schedule-section ${focusField === 'period' ? 'is-focused' : ''}">
-            <label class="schedule-label">
-                <span class="schedule-label__icon">📅</span>
-                복용 기간
-            </label>
-            <div class="period-inputs">
-                <input type="date" id="scheduleStartDate" value="${startDate}">
-                <span class="period-separator">~</span>
-                <input type="date" id="scheduleEndDate" value="${endDate}">
-            </div>
-        </div>
-
-        <div class="btn-row">
-            <button id="cancelSchedule" class="btn-cancel">취소</button>
-            <button id="saveSchedule" class="btn-save">저장</button>
-        </div>
-    </div>`;
-    document.body.appendChild(wrapper);
-
-    // 시간 입력 초기화
-    const timeInputsContainer = wrapper.querySelector("#timeInputs");
-    const timesArray = currentTimes ? currentTimes.split(",").map(t => t.trim()) : ["09:00"];
     
-    const renderTimeInputs = () => {
-        timeInputsContainer.innerHTML = timesArray.map((time, idx) => `
-            <div class="time-input-row">
-                <input type="time" class="time-input" value="${time}" data-index="${idx}">
-                ${timesArray.length > 1 ? `<button type="button" class="remove-time-btn" data-index="${idx}">×</button>` : ''}
-            </div>
-        `).join('');
-
-        // 삭제 버튼 이벤트
-        timeInputsContainer.querySelectorAll(".remove-time-btn").forEach(btn => {
-            btn.onclick = () => {
-                const idx = parseInt(btn.dataset.index);
-                timesArray.splice(idx, 1);
-                renderTimeInputs();
-            };
-        });
-
-        // 시간 변경 이벤트
-        timeInputsContainer.querySelectorAll(".time-input").forEach(input => {
-            input.onchange = () => {
-                const idx = parseInt(input.dataset.index);
-                timesArray[idx] = input.value;
-            };
-        });
-    };
-    renderTimeInputs();
-
-    // 시간 추가 버튼
-    wrapper.querySelector("#addTimeBtn").onclick = () => {
-        timesArray.push("12:00");
-        renderTimeInputs();
-    };
-
-    // 요일 프리셋 버튼
+    let modalContent = "";
+    
+    switch(field) {
+        case "rule":
+            modalContent = `
+                <div class="modal">
+                    <h3>📆 ${name} - 복용 요일 수정</h3>
+                    <div class="day-selector">
+                        <label><input type="checkbox" value="월" ${currentRule.includes("월") || currentRule === "매일" ? "checked" : ""}> 월</label>
+                        <label><input type="checkbox" value="화" ${currentRule.includes("화") || currentRule === "매일" ? "checked" : ""}> 화</label>
+                        <label><input type="checkbox" value="수" ${currentRule.includes("수") || currentRule === "매일" ? "checked" : ""}> 수</label>
+                        <label><input type="checkbox" value="목" ${currentRule.includes("목") || currentRule === "매일" ? "checked" : ""}> 목</label>
+                        <label><input type="checkbox" value="금" ${currentRule.includes("금") || currentRule === "매일" ? "checked" : ""}> 금</label>
+                        <label><input type="checkbox" value="토" ${currentRule.includes("토") || currentRule === "매일" ? "checked" : ""}> 토</label>
+                        <label><input type="checkbox" value="일" ${currentRule.includes("일") && !currentRule.includes("매일") || currentRule === "매일" ? "checked" : ""}> 일</label>
+                    </div>
+                    <div class="btn-row">
+                        <button class="preset-btn" data-preset="all">매일</button>
+                        <button class="preset-btn" data-preset="weekday">평일</button>
+                        <button class="preset-btn" data-preset="weekend">주말</button>
+                    </div>
+                    <div class="btn-row"><button id="cancelEdit">취소</button><button id="saveEdit">저장</button></div>
+                </div>`;
+            break;
+            
+        case "time":
+            const timesArray = currentTimes ? currentTimes.split(",").map(t => t.trim()) : ["09:00"];
+            const timeInputsHTML = timesArray.map((t, i) => `
+                <div class="time-row">
+                    <input type="time" class="time-input" value="${t}">
+                    ${timesArray.length > 1 ? `<button type="button" class="remove-time">×</button>` : ''}
+                </div>
+            `).join("");
+            
+            modalContent = `
+                <div class="modal">
+                    <h3>⏰ ${name} - 복용 시간 수정</h3>
+                    <div id="timeInputsContainer">${timeInputsHTML}</div>
+                    <button type="button" id="addTimeBtn">+ 시간 추가</button>
+                    <div class="btn-row"><button id="cancelEdit">취소</button><button id="saveEdit">저장</button></div>
+                </div>`;
+            break;
+            
+        case "dose":
+            modalContent = `
+                <div class="modal">
+                    <h3>💊 ${name} - 1회 복용량 수정</h3>
+                    <label>복용량 <input type="number" id="newDose" value="${currentDose}" min="1"> 정</label>
+                    <div class="btn-row"><button id="cancelEdit">취소</button><button id="saveEdit">저장</button></div>
+                </div>`;
+            break;
+            
+        case "stock":
+            modalContent = `
+                <div class="modal">
+                    <h3>📦 ${name} - 재고 수정</h3>
+                    <label>현재 재고 <input type="number" id="newStock" value="${currentStock}" min="0"> 정</label>
+                    <div class="btn-row"><button id="cancelEdit">취소</button><button id="saveEdit">저장</button></div>
+                </div>`;
+            break;
+            
+        case "period":
+            modalContent = `
+                <div class="modal">
+                    <h3>📅 ${name} - 복용 기간 수정</h3>
+                    <label>시작일 <input type="date" id="newStartDate" value="${startDate}"></label>
+                    <label>종료일 <input type="date" id="newEndDate" value="${endDate}"></label>
+                    <div class="btn-row"><button id="cancelEdit">취소</button><button id="saveEdit">저장</button></div>
+                </div>`;
+            break;
+            
+        default:
+            return;
+    }
+    
+    wrapper.innerHTML = modalContent;
+    document.body.appendChild(wrapper);
+    
+    // 프리셋 버튼 (요일용)
     wrapper.querySelectorAll(".preset-btn").forEach(btn => {
         btn.onclick = () => {
             const preset = btn.dataset.preset;
-            const checkboxes = wrapper.querySelectorAll(".day-chip input");
-            
+            const checkboxes = wrapper.querySelectorAll(".day-selector input");
             if (preset === "all") {
                 checkboxes.forEach(cb => cb.checked = true);
             } else if (preset === "weekday") {
-                checkboxes.forEach(cb => {
-                    cb.checked = ["월", "화", "수", "목", "금"].includes(cb.value);
-                });
+                checkboxes.forEach(cb => cb.checked = ["월","화","수","목","금"].includes(cb.value));
             } else if (preset === "weekend") {
-                checkboxes.forEach(cb => {
-                    cb.checked = ["토", "일"].includes(cb.value);
-                });
+                checkboxes.forEach(cb => cb.checked = ["토","일"].includes(cb.value));
             }
         };
     });
-
-    // 취소 버튼
-    wrapper.querySelector("#cancelSchedule").onclick = () => wrapper.remove();
-
-    // 저장 버튼
-    wrapper.querySelector("#saveSchedule").onclick = async () => {
-        // 선택된 요일 수집
-        const selectedDays = [];
-        wrapper.querySelectorAll(".day-chip input:checked").forEach(cb => {
-            selectedDays.push(cb.value);
-        });
+    
+    // 시간 추가/삭제 버튼
+    if (field === "time") {
+        const container = wrapper.querySelector("#timeInputsContainer");
         
-        if (selectedDays.length === 0) {
-            alert("최소 하나의 요일을 선택해주세요.");
-            return;
-        }
-
-        // 시간 수집
-        const times = [];
-        wrapper.querySelectorAll(".time-input").forEach(input => {
-            if (input.value) times.push(input.value);
-        });
-
-        if (times.length === 0) {
-            alert("최소 하나의 시간을 입력해주세요.");
-            return;
-        }
-
-        const newStartDate = wrapper.querySelector("#scheduleStartDate").value;
-        const newEndDate = wrapper.querySelector("#scheduleEndDate").value;
-
-        // 요일 문자열 생성
-        const allDays = ["월", "화", "수", "목", "금", "토", "일"];
-        const isAllDays = allDays.every(d => selectedDays.includes(d));
-        const daysStr = isAllDays ? "매일" : selectedDays.join(", ");
-
-        // 스케줄 업데이트 API 호출
-        const success = await updateScheduleData(medicationId, {
-            days: selectedDays.join(","),
-            times: times.join(","),
-            startDate: newStartDate,
-            endDate: newEndDate
-        });
-
-        if (success) {
-            // UI 업데이트
-            cardElement.querySelector(".rule").innerText = daysStr;
-            
-            const timeRow = cardElement.querySelector(".drug-rule-info__row.time");
-            timeRow.innerHTML = times.map(t => `<p class="time-item">${t}</p>`).join("");
-            
-            if (cardElement.querySelector(".start-date")) {
-                cardElement.querySelector(".start-date").innerText = newStartDate;
-            }
-            if (cardElement.querySelector(".end-date")) {
-                cardElement.querySelector(".end-date").innerText = newEndDate;
-            }
-
-            wrapper.remove();
-            showToastIfAvailable("스케줄이 수정되었습니다.", "success");
-        } else {
-            alert("스케줄 수정에 실패했습니다.");
-        }
-    };
-
+        wrapper.querySelector("#addTimeBtn").onclick = () => {
+            const div = document.createElement("div");
+            div.className = "time-row";
+            div.innerHTML = `<input type="time" class="time-input" value="12:00"><button type="button" class="remove-time">×</button>`;
+            container.appendChild(div);
+            bindRemoveButtons();
+        };
+        
+        const bindRemoveButtons = () => {
+            wrapper.querySelectorAll(".remove-time").forEach(btn => {
+                btn.onclick = () => {
+                    if (container.querySelectorAll(".time-row").length > 1) {
+                        btn.parentElement.remove();
+                    }
+                };
+            });
+        };
+        bindRemoveButtons();
+    }
+    
+    // 취소 버튼
+    wrapper.querySelector("#cancelEdit").onclick = () => wrapper.remove();
+    
     // 모달 외부 클릭 시 닫기
     wrapper.addEventListener("click", (e) => {
         if (e.target === wrapper) wrapper.remove();
     });
-
-    // ESC 키로 닫기
-    const escHandler = (e) => {
-        if (e.key === "Escape") {
+    
+    // 저장 버튼
+    wrapper.querySelector("#saveEdit").onclick = async () => {
+        const saveBtn = wrapper.querySelector("#saveEdit");
+        saveBtn.disabled = true;
+        saveBtn.textContent = "저장 중...";
+        
+        let success = false;
+        
+        switch(field) {
+            case "rule":
+                const selectedDays = [];
+                wrapper.querySelectorAll(".day-selector input:checked").forEach(cb => selectedDays.push(cb.value));
+                if (selectedDays.length === 0) {
+                    alert("최소 하나의 요일을 선택해주세요.");
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = "저장";
+                    return;
+                }
+                const allDays = ["월","화","수","목","금","토","일"];
+                const isAllDays = allDays.every(d => selectedDays.includes(d));
+                const daysStr = isAllDays ? "매일" : selectedDays.join(", ");
+                
+                success = await updateScheduleOnServer(medicationId, cardElement, { days: selectedDays.join(",") });
+                if (success) {
+                    cardElement.querySelector(".rule").innerText = daysStr;
+                }
+                break;
+                
+            case "time":
+                const times = [];
+                wrapper.querySelectorAll(".time-input").forEach(input => {
+                    if (input.value) times.push(input.value);
+                });
+                if (times.length === 0) {
+                    alert("최소 하나의 시간을 입력해주세요.");
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = "저장";
+                    return;
+                }
+                
+                success = await updateScheduleOnServer(medicationId, cardElement, { times: times.join(",") });
+                if (success) {
+                    const timeRow = cardElement.querySelector(".drug-rule-info__row.time");
+                    timeRow.innerHTML = times.map(t => `<p class="time-item">${t}</p>`).join("");
+                }
+                break;
+                
+            case "dose":
+                const newDose = parseInt(wrapper.querySelector("#newDose").value);
+                if (isNaN(newDose) || newDose < 1) {
+                    alert("1 이상의 값을 입력해주세요.");
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = "저장";
+                    return;
+                }
+                // PATCH API로 복용량 업데이트
+                console.log("[Dose] 업데이트 시도:", newDose);
+                success = await updateMedicationData(cardElement, { doseUnitQuantity: newDose });
+                console.log("[Dose] 결과:", success);
+                break;
+                
+            case "stock":
+                const newStock = parseInt(wrapper.querySelector("#newStock").value);
+                if (isNaN(newStock) || newStock < 0) {
+                    alert("0 이상의 값을 입력해주세요.");
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = "저장";
+                    return;
+                }
+                // PATCH API로 재고 업데이트
+                console.log("[Stock] 업데이트 시도:", newStock);
+                success = await updateMedicationData(cardElement, { currentQuantity: newStock });
+                console.log("[Stock] 결과:", success);
+                break;
+                
+            case "period":
+                const newStart = wrapper.querySelector("#newStartDate").value;
+                const newEnd = wrapper.querySelector("#newEndDate").value;
+                
+                success = await updateScheduleOnServer(medicationId, cardElement, { 
+                    startDate: newStart, 
+                    endDate: newEnd 
+                });
+                if (success) {
+                    if (cardElement.querySelector(".start-date")) {
+                        cardElement.querySelector(".start-date").innerText = newStart;
+                    }
+                    if (cardElement.querySelector(".end-date")) {
+                        cardElement.querySelector(".end-date").innerText = newEnd;
+                    }
+                }
+                break;
+        }
+        
+        if (success) {
             wrapper.remove();
-            document.removeEventListener("keydown", escHandler);
+            showToastIfAvailable("수정되었습니다. 새로고침 중...", "success");
+            // 서버 데이터와 동기화를 위해 카드 다시 불러오기
+            setTimeout(() => {
+                loadCards();
+            }, 500);
+        } else {
+            saveBtn.disabled = false;
+            saveBtn.textContent = "저장";
         }
     };
-    document.addEventListener("keydown", escHandler);
 }
 
 // ==================================================
-// 🔹 스케줄 데이터 업데이트 API
+// 🔹 스케줄 정보 서버 업데이트 (API 명세 준수)
+// PUT /api/schedules/{scheduleId} 사용
 // ==================================================
-async function updateScheduleData(medicationId, scheduleData) {
+async function updateScheduleOnServer(medicationId, cardElement, scheduleChanges) {
     try {
-        // PUT /api/schedules/{scheduleId} 또는 약 전체 업데이트 API 사용
-        // 현재는 약 정보와 스케줄을 함께 업데이트하는 API가 필요
-        // 임시로 PUT /api/mediinfo/medicines/{id} 형태 가정
+        // 1. 카드에 저장된 스케줄 정보 사용 (API 호출 없이)
+        let schedules = [];
+        try {
+            schedules = JSON.parse(cardElement.dataset.schedules || "[]");
+        } catch (e) {
+            console.warn("[Schedule] 스케줄 파싱 실패:", e);
+        }
         
-        const payload = {
-            days: scheduleData.days,
-            times: scheduleData.times,
-            startDate: scheduleData.startDate,
-            endDate: scheduleData.endDate
-        };
+        console.log("[Schedule] 저장된 스케줄 목록:", schedules);
+        
+        if (schedules.length === 0) {
+            console.warn("[Schedule] 스케줄이 없습니다.");
+            showToastIfAvailable("수정할 스케줄이 없습니다.", "error");
+            return false;
+        }
+        
+        // 2. 현재 값 가져오기
+        const currentRule = cardElement.querySelector(".rule")?.innerText || "매일";
+        const timeItems = cardElement.querySelectorAll(".time-item");
+        const currentTimes = Array.from(timeItems).map(t => t.innerText.trim());
+        const startDateEl = cardElement.querySelector(".start-date");
+        const endDateEl = cardElement.querySelector(".end-date");
+        const currentStartDate = startDateEl?.innerText || schedules[0]?.startDate || "";
+        const currentEndDate = endDateEl?.innerText || schedules[0]?.endDate || "";
+        
+        // 요일 변환
+        let frequency = scheduleChanges.days || currentRule;
+        if (frequency === "매일") {
+            frequency = "월,화,수,목,금,토,일";
+        } else {
+            frequency = frequency.replace(/\s/g, "");
+        }
+        
+        // 3. 시간 변경인 경우: 스케줄 개수가 다르면 삭제 후 재생성 필요
+        const newTimes = scheduleChanges.times ? scheduleChanges.times.split(",") : currentTimes;
+        
+        let allSuccess = true;
+        
+        // 4. 기존 스케줄 수정 또는 삭제/생성
+        if (newTimes.length === schedules.length) {
+            // 개수가 같으면 각 스케줄 업데이트
+            for (let i = 0; i < schedules.length; i++) {
+                const scheduleId = schedules[i].scheduleId;
+                const payload = {
+                    intakeTime: newTimes[i],
+                    frequency: frequency,
+                    startDate: scheduleChanges.startDate || currentStartDate,
+                    endDate: scheduleChanges.endDate || currentEndDate
+                };
+                
+                console.log(`[Schedule] PUT /api/schedules/${scheduleId}`, payload);
+                
+                const res = await fetch(`${API_BASE_URL}/api/schedules/${scheduleId}`, {
+                    method: "PUT",
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify(payload)
+                });
+                
+                console.log(`[Schedule] 스케줄 ${scheduleId} 응답:`, res.status);
+                
+                if (!res.ok) {
+                    allSuccess = false;
+                    const errText = await res.text().catch(() => "");
+                    console.error(`[Schedule] 스케줄 ${scheduleId} 업데이트 실패:`, res.status, errText);
+                }
+            }
+        } else {
+            // 시간 개수가 다르면: 기존 스케줄 삭제 후 새로 추가
+            console.log("[Schedule] 스케줄 개수 변경, 삭제 후 재생성");
+            
+            // 기존 스케줄 삭제
+            for (const sch of schedules) {
+                const delRes = await fetch(`${API_BASE_URL}/api/schedules/${sch.scheduleId}`, {
+                    method: "DELETE",
+                    headers: getAuthHeaders()
+                });
+                console.log(`[Schedule] 스케줄 ${sch.scheduleId} 삭제:`, delRes.status);
+            }
+            
+            // 새 스케줄 추가
+            for (const time of newTimes) {
+                const payload = {
+                    intakeTime: time,
+                    frequency: frequency,
+                    startDate: scheduleChanges.startDate || currentStartDate,
+                    endDate: scheduleChanges.endDate || currentEndDate
+                };
+                
+                console.log(`[Schedule] POST /api/medicines/${medicationId}/schedules`, payload);
+                
+                const addRes = await fetch(`${API_BASE_URL}/api/medicines/${medicationId}/schedules`, {
+                    method: "POST",
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify(payload)
+                });
+                
+                console.log(`[Schedule] 새 스케줄 추가 응답:`, addRes.status);
+                
+                if (!addRes.ok && addRes.status !== 201) {
+                    allSuccess = false;
+                }
+            }
+        }
+        
+        if (allSuccess) {
+            console.log("[Schedule] 모든 스케줄 업데이트 성공");
+            return true;
+        } else {
+            showToastIfAvailable("일부 스케줄 업데이트에 실패했습니다.", "error");
+            return false;
+        }
+        
+    } catch (e) {
+        console.error("[Schedule] 오류:", e);
+        showToastIfAvailable("네트워크 오류가 발생했습니다.", "error");
+        return false;
+    }
+}
 
-        const res = await fetch(`${API_BASE_URL}/api/mediinfo/medicines/${medicationId}/schedule`, {
+// ==================================================
+// 🔹 약 기본 정보 수정 (PUT /api/medicines/{id})
+// ==================================================
+async function updateMedicineInfo(medicationId, cardElement, changes) {
+    const name = changes.name || cardElement.querySelector(".drug-info__title p")?.innerText || "";
+    const category = changes.category || cardElement.dataset.category || "필수 복용";
+    const memo = changes.memo !== undefined ? changes.memo : (cardElement.dataset.memo || "");
+    const doseUnitQuantity = changes.doseUnitQuantity || parseInt(cardElement.dataset.doseCount) || 1;
+    const currentQuantity = changes.currentQuantity !== undefined ? changes.currentQuantity : parseInt(cardElement.dataset.stock) || 0;
+    const refillThreshold = parseInt(cardElement.dataset.refillThreshold) || 5;
+    
+    const payload = {
+        name,
+        category,
+        memo,
+        doseUnitQuantity,
+        currentQuantity,
+        refillThreshold
+    };
+    
+    console.log("[Medicine] PUT /api/medicines/" + medicationId, payload);
+    
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/medicines/${medicationId}`, {
             method: "PUT",
             headers: getAuthHeaders(),
             body: JSON.stringify(payload)
         });
-
-        if (res.status === 404) {
-            // API가 없는 경우 대체 시도: 전체 약 정보 업데이트
-            console.warn("스케줄 전용 API 없음, 전체 업데이트 시도");
-            
-            // 일단 UI만 업데이트 (서버 저장 없이)
-            console.log("스케줄 변경 (로컬):", payload);
+        
+        console.log("[Medicine] 응답:", res.status);
+        
+        if (res.ok) {
             return true;
         }
-
-        if (!res.ok) {
-            console.error("스케줄 업데이트 실패:", res.status);
-            return false;
+        
+        if (res.status === 400) {
+            showToastIfAvailable("입력값을 확인해주세요.", "error");
+        } else if (res.status === 404) {
+            showToastIfAvailable("해당 약을 찾을 수 없습니다.", "error");
+        } else {
+            showToastIfAvailable(`서버 오류 (${res.status})`, "error");
         }
-
-        return true;
+        return false;
     } catch (e) {
-        console.error("스케줄 업데이트 오류:", e);
-        // API 오류 시에도 UI는 업데이트
-        return true;
+        console.error("[Medicine] 오류:", e);
+        showToastIfAvailable("네트워크 오류가 발생했습니다.", "error");
+        return false;
     }
 }
 
