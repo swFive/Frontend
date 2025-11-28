@@ -1,17 +1,13 @@
 /**
- * notice.js — 최종 API 연동 + 방어 코드 버전
+ * notice.js — 약 목록 기반 통계 계산 버전
  * ----------------------------------
- * ✔ /api/v1/statistics/daily-intake (오늘)
- * ✔ /api/v1/statistics?duration=WEEKLY (금주)
- * ✔ /api/v1/statistics?duration=MONTHLY (금월)
- * 응답 형식: [ { userName, date, totalRecords, successCount, ... } ]
+ * ✔ GET /api/mediinfo/medicines 에서 schedulesWithLogs 활용
+ * ✔ 클라이언트에서 통계 직접 계산
  */
 
 // ===================================================================
 // 0) 공통 설정
 // ===================================================================
-
-// login.js랑 맞춰서 사용
 const API_BASE_URL =
     (typeof window !== "undefined" && window.__MC_API_BASE_URL__)
         ? window.__MC_API_BASE_URL__
@@ -28,9 +24,7 @@ function getUserId() {
             return null;
         }
         const user = JSON.parse(raw);
-        const uid = user?.id || user?.userId || null;
-        console.log("[notice] userId =", uid, "raw user =", user);
-        return uid;
+        return user?.id || user?.userId || null;
     } catch (e) {
         console.error("[notice] mc_user 파싱 실패:", e);
         return null;
@@ -52,26 +46,19 @@ function getToken() {
 }
 
 // ===================================================================
-// 2) 통계 API 호출
+// 2) 약 목록 API 호출
 // ===================================================================
-async function fetchStatistics({ duration = "DAILY" }) {
-    const userId = getUserId();
+async function fetchMedicines() {
     const token = getToken();
-
-    if (!userId || !token) {
+    
+    if (!token) {
         showToast("로그인이 필요합니다.", { type: "error" });
         setTimeout(() => (window.location.href = "./login.html"), 500);
-        return null;
+        return [];
     }
 
-    let url;
-    if (duration === "DAILY") {
-        url = `${API_BASE_URL}/api/v1/statistics/daily-intake?userId=${userId}`;
-    } else {
-        url = `${API_BASE_URL}/api/v1/statistics?userId=${userId}&duration=${duration}`;
-    }
-
-    console.log(`[notice] 통계 요청 (${duration}) →`, url);
+    const url = `${API_BASE_URL}/api/mediinfo/medicines`;
+    console.log("[notice] 약 목록 요청 →", url);
 
     try {
         const res = await fetch(url, {
@@ -82,12 +69,10 @@ async function fetchStatistics({ duration = "DAILY" }) {
             }
         });
 
-        console.log(`[notice] 응답 상태 (${duration}):`, res.status);
-
         if (res.status === 401) {
-            showToast("로그인이 만료되었습니다. 다시 로그인 해주세요.", { type: "error" });
+            showToast("로그인이 만료되었습니다.", { type: "error" });
             setTimeout(() => (window.location.href = "./login.html"), 800);
-            return null;
+            return [];
         }
 
         if (!res.ok) {
@@ -95,38 +80,238 @@ async function fetchStatistics({ duration = "DAILY" }) {
         }
 
         const json = await res.json();
-        console.log(`[notice] 응답 JSON (${duration}):`, json);
-
-        if (!Array.isArray(json) || json.length === 0) {
-            console.warn(`[notice] ${duration} 결과 배열이 비어 있음`);
-            return null;
-        }
-
-        return json[0];
+        console.log("[notice] 약 목록:", json.length, "개");
+        return json;
     } catch (e) {
-        console.error(`[notice] 통계 API 오류 (${duration}):`, e);
-        showToast(`통계 데이터를 불러올 수 없습니다. (${duration})`, { type: "error" });
-        return null;
+        console.error("[notice] 약 목록 API 오류:", e);
+        return [];
     }
+}
+
+// ===================================================================
+// 2-1) 복용 기록 API 호출
+// ===================================================================
+async function fetchLogs(medicationId) {
+    const token = getToken();
+    if (!token) return [];
+
+    const url = `${API_BASE_URL}/api/logs/medication/${medicationId}`;
+
+    try {
+        const res = await fetch(url, {
+            method: "GET",
+            headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+            }
+        });
+
+        if (!res.ok) return [];
+        return await res.json();
+    } catch (e) {
+        console.error("[notice] 복용 기록 API 오류:", e);
+        return [];
+    }
+}
+
+// 모든 약의 복용 기록 가져오기
+async function fetchAllLogs(medications) {
+    const allLogs = [];
+    
+    for (const med of medications) {
+        const logs = await fetchLogs(med.medicationId);
+        logs.forEach(log => {
+            allLogs.push({
+                ...log,
+                medicationName: med.name
+            });
+        });
+    }
+    
+    console.log("[notice] 전체 복용 기록:", allLogs.length, "개");
+    return allLogs;
+}
+
+// ===================================================================
+// 2-2) 클라이언트 통계 계산 (복용 기록 기반)
+// ===================================================================
+function calculateStatistics(medications, logs) {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayStr = today.toISOString().split('T')[0];
+    const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    
+    // 이번 주 시작일 (일요일)
+    const weekStart = new Date(today);
+    weekStart.setDate(today.getDate() - today.getDay());
+    const weekStartStr = weekStart.toISOString().split('T')[0];
+    
+    console.log("[notice] 통계 계산 시작...");
+    console.log("[notice] 오늘:", todayStr);
+    console.log("[notice] 이번 주 시작:", weekStartStr);
+    
+    // 복용 기록을 날짜별로 정리
+    const logsByDate = {};
+    logs.forEach(log => {
+        // recordTime에서 날짜 추출
+        let dateStr = null;
+        if (log.recordTime) {
+            if (log.recordTime.includes('T')) {
+                dateStr = log.recordTime.split('T')[0];
+            } else {
+                dateStr = log.recordTime.substring(0, 10);
+            }
+        }
+        if (!dateStr) return;
+        
+        if (!logsByDate[dateStr]) {
+            logsByDate[dateStr] = [];
+        }
+        logsByDate[dateStr].push(log);
+    });
+    
+    console.log("[notice] 날짜별 복용 기록:", Object.keys(logsByDate));
+    
+    // 이번 주 통계 계산
+    let weeklyTaken = 0;
+    let weeklyLate = 0;
+    let weeklyMissed = 0;
+    
+    // 약물별 미복용 집계
+    const drugMissedCount = {};
+    
+    // 이번 주 복용 기록 분석
+    logs.forEach(log => {
+        let dateStr = null;
+        if (log.recordTime) {
+            if (log.recordTime.includes('T')) {
+                dateStr = log.recordTime.split('T')[0];
+            } else {
+                dateStr = log.recordTime.substring(0, 10);
+            }
+        }
+        if (!dateStr) return;
+        
+        // 이번 주 범위인지 확인
+        if (dateStr < weekStartStr || dateStr > todayStr) return;
+        
+        const status = log.intakeStatus;
+        if (status === "TAKEN") {
+            weeklyTaken++;
+        } else if (status === "LATE") {
+            weeklyLate++;
+        } else if (status === "SKIPPED") {
+            weeklyMissed++;
+            const medName = log.medicationName || "알 수 없음";
+            drugMissedCount[medName] = (drugMissedCount[medName] || 0) + 1;
+        }
+    });
+    
+    // 오늘의 복용률 계산 (schedulesWithLogs 사용)
+    let todayTotal = 0;
+    let todaySuccess = 0;
+    
+    medications.forEach(med => {
+        const schedules = med.schedulesWithLogs || [];
+        schedules.forEach(schedule => {
+            const intakeTime = schedule.intakeTime ? schedule.intakeTime.substring(0, 5) : "00:00";
+            
+            // 시간이 지난 스케줄만 카운트
+            if (intakeTime <= currentTimeStr) {
+                todayTotal++;
+                
+                if (schedule.logId) {
+                    const status = schedule.intakeStatus;
+                    if (status === "TAKEN" || status === "LATE") {
+                        todaySuccess++;
+                    }
+                    if (status === "LATE") {
+                        // 오늘의 지각도 추가
+                        if (!logs.some(l => l.logId === schedule.logId)) {
+                            weeklyLate++;
+                        }
+                    }
+                    if (status === "SKIPPED") {
+                        if (!logs.some(l => l.logId === schedule.logId)) {
+                            weeklyMissed++;
+                            drugMissedCount[med.name] = (drugMissedCount[med.name] || 0) + 1;
+                        }
+                    }
+                } else {
+                    // 기록이 없으면 미복용
+                    weeklyMissed++;
+                    drugMissedCount[med.name] = (drugMissedCount[med.name] || 0) + 1;
+                }
+            }
+        });
+    });
+    
+    const successRate = todayTotal > 0 ? Math.round((todaySuccess / todayTotal) * 100) : 100;
+    
+    // 약물별 미복용 Top 3
+    const topDrugs = Object.entries(drugMissedCount)
+        .map(([name, count]) => ({ title: name, missed: count, total: Math.max(count * 2, 10) }))
+        .sort((a, b) => b.missed - a.missed)
+        .slice(0, 3);
+    
+    // 기본 3개 채우기
+    while (topDrugs.length < 3) {
+        topDrugs.push({ title: "-", missed: 0, total: 1 });
+    }
+
+    console.log("[notice] ===== 통계 결과 =====");
+    console.log("[notice] 이번 주 복용:", weeklyTaken);
+    console.log("[notice] 이번 주 지각:", weeklyLate);
+    console.log("[notice] 이번 주 미복용:", weeklyMissed);
+    console.log("[notice] 오늘 복용률:", successRate + "%");
+    console.log("[notice] 미복용 Top 3:", topDrugs);
+
+    return {
+        weekly: {
+            failureCount: weeklyMissed,
+            lateCount: weeklyLate,
+            takenCount: weeklyTaken
+        },
+        monthly: {
+            successRate: successRate
+        },
+        topDrugs: topDrugs
+    };
 }
 
 // ===================================================================
 // 3) Summary Cards 업데이트
 // ===================================================================
-function updateSummaryCards(weekly, monthly) {
+function updateSummaryCards(stats) {
     const missedEl = document.getElementById("missed-weekly");
     const lateEl = document.getElementById("late-weekly");
     const successEl = document.getElementById("success-monthly");
+    const missedChangeEl = document.getElementById("missed-change-text");
+    const lateChangeEl = document.getElementById("late-change-text");
+    const successTargetEl = document.getElementById("success-target-text");
 
-    const weeklyFailure = weekly?.failureCount ?? 0;
-    const weeklyLate = weekly?.lateCount ?? 0;
-    const monthlySuccess = monthly?.successRate ?? 0;
+    const weeklyFailure = stats.weekly?.failureCount ?? 0;
+    const weeklyLate = stats.weekly?.lateCount ?? 0;
+    const monthlySuccess = stats.monthly?.successRate ?? 0;
 
     if (missedEl) missedEl.textContent = `${weeklyFailure}회`;
     if (lateEl) lateEl.textContent = `${weeklyLate}회`;
     if (successEl) successEl.textContent = `${monthlySuccess}%`;
+    
+    // 비교 텍스트 업데이트
+    if (missedChangeEl) {
+        missedChangeEl.textContent = weeklyFailure === 0 ? "유지" : `${weeklyFailure}회 발생`;
+        missedChangeEl.className = weeklyFailure === 0 ? "trend-down" : "trend-up";
+    }
+    if (lateChangeEl) {
+        lateChangeEl.textContent = weeklyLate === 0 ? "유지" : `${weeklyLate}회 발생`;
+        lateChangeEl.className = weeklyLate === 0 ? "trend-down" : "trend-up";
+    }
+    if (successTargetEl) {
+        successTargetEl.textContent = monthlySuccess >= 80 ? "목표 달성! 🎉" : "목표: 80%";
+    }
 
-    console.log("[notice] SummaryCards:", {
+    console.log("[notice] SummaryCards 업데이트 완료:", {
         weeklyFailure,
         weeklyLate,
         monthlySuccess,
@@ -134,125 +319,22 @@ function updateSummaryCards(weekly, monthly) {
 }
 
 // ===================================================================
-// 4) daily-intake 차트용 데이터 생성
+// 4) Top 3 도넛 차트용 데이터
 // ===================================================================
-function generateDailyDetailStats(daily) {
-    if (!daily) {
-        const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
-        return {
-            dailyStats: WEEKDAYS.map((d) => ({ day: d, missed: 0, late: 0, total: 1 })),
-            timeStats: {
-                "아침": { missed: 0, late: 0 },
-                "점심": { missed: 0, late: 0 },
-                "저녁": { missed: 0, late: 0 },
-                "취침 전": { missed: 0, late: 0 },
-            },
-            topDrugs: [
-                { title: "처방약", missed: 0, total: 1 },
-                { title: "유산균", missed: 0, total: 1 },
-                { title: "비타민", missed: 0, total: 1 },
-            ],
-        };
+function getTopDrugsData(topDrugs) {
+    if (!topDrugs || topDrugs.length === 0) {
+        return [
+            { title: "-", missed: 0, total: 1 },
+            { title: "-", missed: 0, total: 1 },
+            { title: "-", missed: 0, total: 1 },
+        ];
     }
-
-    const total = daily.totalRecords || 1;
-    const late = daily.lateCount || 0;
-    const skipped = daily.skippedCount || 0;
-
-    const dateStr = daily.date || new Date().toISOString().slice(0, 10);
-
-    const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
-    const todayIdx = new Date(dateStr).getDay();
-
-    const dailyStats = WEEKDAYS.map((day, idx) => {
-        if (idx === todayIdx) {
-            return { day, missed: skipped, late: late, total };
-        }
-        return { day, missed: 0, late: 0, total };
-    });
-
-    const timeStats = {
-        "아침": { missed: 0, late: 0 },
-        "점심": { missed: 0, late: 0 },
-        "저녁": { missed: 0, late: 0 },
-        "취침 전": { missed: 0, late: 0 },
-    };
-
-    const keys = Object.keys(timeStats);
-    let rLate = late;
-    let rMiss = skipped;
-    let i = 0;
-
-    while (rLate-- > 0) timeStats[keys[i++ % 4]].late++;
-    i = 0;
-    while (rMiss-- > 0) timeStats[keys[i++ % 4]].missed++;
-
-    const failRate = (late + skipped) / total;
-    const topDrugs = [
-        { title: "처방약", missed: Math.round(10 * failRate), total: 10 },
-        { title: "유산균", missed: Math.round(8 * failRate), total: 8 },
-        { title: "비타민", missed: Math.round(5 * failRate), total: 5 },
-    ];
-
-    return { dailyStats, timeStats, topDrugs };
+    return topDrugs;
 }
 
 // ===================================================================
-// 5) 렌더링 함수들
+// 5) Top 3 도넛 차트 렌더링
 // ===================================================================
-function renderDailyBarChart(dailyStats, containerId) {
-    const container = document.getElementById(containerId);
-    if (!container) return;
-
-    container.innerHTML = "";
-
-    dailyStats.forEach((stat) => {
-        const failed = stat.missed + stat.late;
-        const complete = stat.total - failed;
-        const percent = (complete / stat.total) * 100;
-
-        const html = `
-            <div class="day-chart-row">
-                <span class="day-chart-day">${stat.day}</span>
-                <div class="day-chart-bar-container">
-                    <div class="day-chart-bar" style="width:${percent}%"></div>
-                </div>
-                <span class="day-chart-value">미복용 ${stat.missed}</span>
-            </div>
-        `;
-        container.insertAdjacentHTML("beforeend", html);
-    });
-}
-
-function renderTimeBarChart(timeStats, containerId) {
-    const container = document.getElementById(containerId);
-    if (!container) return;
-
-    container.innerHTML = "";
-
-    const order = ["아침", "점심", "저녁", "취침 전"];
-    const max = Math.max(
-        ...order.map((t) => timeStats[t].missed + timeStats[t].late),
-        1
-    );
-
-    order.forEach((slot) => {
-        const val = timeStats[slot].late;
-        const width = (val / max) * 100;
-
-        const html = `
-            <div class="time-chart-row">
-                <span class="time-chart-label">${slot}</span>
-                <div class="time-chart-bar-container">
-                    <div class="time-chart-bar" style="width:${width}%"></div>
-                </div>
-                <span class="time-chart-count">${val}</span>
-            </div>
-        `;
-        container.insertAdjacentHTML("beforeend", html);
-    });
-}
-
 function renderTopDrugsDoughnut(topDrugs, containerId) {
     const container = document.getElementById(containerId);
     if (!container) return;
@@ -260,7 +342,7 @@ function renderTopDrugsDoughnut(topDrugs, containerId) {
     container.innerHTML = "";
 
     topDrugs.forEach((drug) => {
-        const rate = (drug.missed / drug.total) * 100;
+        const rate = drug.total > 0 ? (drug.missed / drug.total) * 100 : 0;
 
         const html = `
             <div class="doughnut-item">
@@ -271,7 +353,7 @@ function renderTopDrugsDoughnut(topDrugs, containerId) {
                     <div class="doughnut-center-hole"></div>
                 </div>
                 <p class="doughnut-title">${drug.title}</p>
-                <p class="doughnut-stat">미복용률 ${rate.toFixed(1)}%</p>
+                <p class="doughnut-stat">${drug.title !== "-" ? `미복용 ${drug.missed}회` : "데이터 없음"}</p>
             </div>
         `;
         container.insertAdjacentHTML("beforeend", html);
@@ -282,19 +364,33 @@ function renderTopDrugsDoughnut(topDrugs, containerId) {
 // 6) 페이지 로드 실행
 // ===================================================================
 document.addEventListener("DOMContentLoaded", async () => {
-    console.log("[notice] DOMContentLoaded, API_BASE_URL =", API_BASE_URL);
+    console.log("[notice] ===== 페이지 로드 시작 =====");
 
-    const daily = await fetchStatistics({ duration: "DAILY" });
-    const weekly = await fetchStatistics({ duration: "WEEKLY" });
-    const monthly = await fetchStatistics({ duration: "MONTHLY" });
+    // 1. 약 목록 가져오기
+    const medications = await fetchMedicines();
+    
+    if (medications.length === 0) {
+        console.log("[notice] 등록된 약이 없습니다.");
+        updateSummaryCards({
+            weekly: { failureCount: 0, lateCount: 0 },
+            monthly: { successRate: 100 }
+        });
+        renderTopDrugsDoughnut(getTopDrugsData([]), "drug-doughnut-chart");
+        return;
+    }
 
-    updateSummaryCards(weekly, monthly);
+    // 2. 모든 약의 복용 기록 가져오기
+    console.log("[notice] 복용 기록 로드 중...");
+    const logs = await fetchAllLogs(medications);
 
-    const { dailyStats, timeStats, topDrugs } = generateDailyDetailStats(daily);
+    // 3. 통계 계산 (약 목록 + 복용 기록)
+    const stats = calculateStatistics(medications, logs);
 
-    renderDailyBarChart(dailyStats, "day-bar-chart");
-    renderTimeBarChart(timeStats, "time-bar-chart");
-    renderTopDrugsDoughnut(topDrugs, "drug-doughnut-chart");
+    // 4. 카드 업데이트
+    updateSummaryCards(stats);
 
-    console.log("[notice] 렌더링 완료");
+    // 5. Top 3 도넛 차트 렌더링
+    renderTopDrugsDoughnut(getTopDrugsData(stats.topDrugs), "drug-doughnut-chart");
+
+    console.log("[notice] ===== 렌더링 완료 =====");
 });
