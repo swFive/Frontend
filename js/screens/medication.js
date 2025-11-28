@@ -673,17 +673,27 @@ function showAddForm() {
     wrapper.querySelector("#cancelBtn").onclick = () => wrapper.remove();
 
     wrapper.querySelector("#okBtn").onclick = async () => {
-        const name = wrapper.querySelector("#drugName").value;
+        const name = wrapper.querySelector("#drugName").value.trim();
         const category = wrapper.querySelector("#drugType").value;
-        const days = wrapper.querySelector("#drugDays").value || "DAILY";
-        const times = wrapper.querySelector("#drugTimes").value;
+        const days = wrapper.querySelector("#drugDays").value.trim();
+        const times = wrapper.querySelector("#drugTimes").value.trim();
         const doseUnitQuantity = parseInt(wrapper.querySelector("#doseCount").value);
         const initialQuantity = parseInt(wrapper.querySelector("#drugStock").value);
         const memo = wrapper.querySelector("#drugMemo").value;
         const startDate = wrapper.querySelector("#startDate").value;
         const endDate = wrapper.querySelector("#endDate").value;
 
-        if (!name || !times) return alert("이름과 시간은 필수입니다.");
+        // 필수 항목 검증
+        const missingFields = [];
+        if (!name) missingFields.push("이름");
+        if (!category) missingFields.push("카테고리");
+        if (!days) missingFields.push("주기(요일)");
+        if (!times) missingFields.push("시간");
+        
+        if (missingFields.length > 0) {
+            showToastIfAvailable(`${missingFields.join(", ")}을(를) 입력해주세요.`, "error");
+            return;
+        }
 
         const payload = {
             userId: 0,
