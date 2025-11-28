@@ -843,3 +843,14 @@ select.inline-select {
     transform: scale(1.02);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
+
+/* 복용 상태 스타일 */
+.intake-status.skipped .intake-progress {
+    color: #999;
+    font-weight: 600;
+}
+
+.intake-status.done .intake-progress {
+    color: #28a745;
+    font-weight: 600;
+}

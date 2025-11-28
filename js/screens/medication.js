@@ -126,8 +126,10 @@ async function loadCards() {
                 const item = medicationData;
                 const sch = schedule || {};
                 
-                // 현재 스케줄의 복용 여부
+                // 현재 스케줄의 복용/건너뜀 여부
                 const isTaken = sch.logId && (sch.intakeStatus === 'TAKEN' || sch.intakeStatus === 'LATE');
+                const isSkipped = sch.logId && sch.intakeStatus === 'SKIPPED';
+                const isLate = sch.logId && sch.intakeStatus === 'LATE';
                 
                 const cardData = {
                     id: item.medicationId,
@@ -145,6 +147,8 @@ async function loadCards() {
                     endDate: sch.endDate || "",
                     dailyTimes: 1,
                     takenCountToday: isTaken ? 1 : 0,
+                    isSkipped: isSkipped,  // 건너뜀 상태 추가
+                    isLate: isLate,  // 지각 상태 추가
                     nextScheduleId: sch.scheduleId || null,
                     lastLogId: sch.logId || null,
                     refillThreshold: 5,
@@ -294,6 +298,23 @@ function createCard(cardData) {
     const totalTimes = parseInt(cardData.dailyTimes);
     const isDone = takenCount >= totalTimes && totalTimes > 0;
     const hasAnyTaken = takenCount > 0;
+    const isSkipped = cardData.isSkipped || false;
+    const isLate = cardData.isLate || false;
+    
+    // 상태에 따른 표시 텍스트
+    let statusText = `${takenCount}/${totalTimes} 복용`;
+    let statusClass = "";
+    if (isSkipped) {
+        statusText = "⏭ 건너뜀";
+        statusClass = "skipped";
+    } else if (isDone) {
+        statusText = isLate ? "⏰ 지각 복용" : "✅ 완료";
+        statusClass = isDone ? "done" : "";
+    }
+    
+    // 건너뜀 상태면 버튼 모두 비활성화
+    const buttonsDisabled = isDone || isSkipped;
+    const hasCancelable = hasAnyTaken || isSkipped;
 
     newCard.innerHTML = `
     <div class="color-tool-red">
@@ -319,14 +340,14 @@ function createCard(cardData) {
       <div class="drug-rule-info__row editable-row" data-field="dose" title="클릭하여 수정"><p class="dose">${cardData.dose}</p>정</div>
       <div class="drug-rule-info__row stock-row editable-row" data-field="stock" title="클릭하여 수정">재고: <span class="stock">${cardData.stock}</span>정</div>
       <div class="drug-rule-info__row period editable-row" data-field="period" title="클릭하여 수정">기간: <span class="start-date">${cardData.startDate}</span> ~ <span class="end-date">${cardData.endDate}</span></div>
-      <div class="drug-rule-info__row intake-status">
-        <span class="intake-progress">${isDone ? "✅ 완료" : `${takenCount}/${totalTimes} 복용`}</span>
+      <div class="drug-rule-info__row intake-status ${statusClass}">
+        <span class="intake-progress">${statusText}</span>
       </div>
       <div class="drug-btn-group">
-        <button class="take-btn ${isDone ? 'disabled' : ''}" ${isDone ? 'disabled' : ''}>💊 복용</button>
-        <button class="late-btn ${isDone ? 'disabled' : ''}" ${isDone ? 'disabled' : ''}>⏰ 지각</button>
-        <button class="skip-btn ${isDone ? 'disabled' : ''}" ${isDone ? 'disabled' : ''}>⏭ 건너뛰기</button>
-        <button class="cancel-btn ${!hasAnyTaken ? 'disabled' : ''}" ${!hasAnyTaken ? 'disabled' : ''}>↩ 취소</button>
+        <button class="take-btn ${buttonsDisabled ? 'disabled' : ''}" ${buttonsDisabled ? 'disabled' : ''}>💊 복용</button>
+        <button class="late-btn ${buttonsDisabled ? 'disabled' : ''}" ${buttonsDisabled ? 'disabled' : ''}>⏰ 지각</button>
+        <button class="skip-btn ${buttonsDisabled ? 'disabled' : ''}" ${buttonsDisabled ? 'disabled' : ''}>⏭ 건너뛰기</button>
+        <button class="cancel-btn ${!hasCancelable ? 'disabled' : ''}" ${!hasCancelable ? 'disabled' : ''}>↩ 취소</button>
       </div>
     </div>
   `;
