@@ -1454,10 +1454,24 @@ function showFieldEditor(cardElement, cardData, field) {
                 const isAllDays = allDays.every(d => selectedDays.includes(d));
                 const daysStr = isAllDays ? "매일" : selectedDays.join(", ");
                 
-                success = await updateScheduleOnServer(medicationId, cardElement, { days: selectedDays.join(",") });
-                if (success) {
-                    cardElement.querySelector(".rule").innerText = daysStr;
+                // 같은 약의 모든 스케줄 업데이트
+                const allCardsWithSameMedForRule = document.querySelectorAll(`.drug-card[data-id="${medicationId}"]`);
+                let ruleAllSuccess = true;
+                
+                for (const card of allCardsWithSameMedForRule) {
+                    const scheduleId = card.dataset.scheduleId;
+                    if (scheduleId) {
+                        const result = await updateScheduleOnServer(medicationId, card, { days: selectedDays.join(",") });
+                        if (!result) ruleAllSuccess = false;
+                    }
+                    // UI 업데이트
+                    const ruleEl = card.querySelector(".rule");
+                    if (ruleEl) {
+                        ruleEl.innerText = daysStr;
+                    }
                 }
+                
+                success = ruleAllSuccess;
                 break;
                 
             case "time":
