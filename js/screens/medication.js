@@ -928,7 +928,7 @@ function showCategoryEditor(cardElement, cardData) {
         }
         
         if (typeColors[newName]) {
-            showToastIfAvailable("이미 존재하는 카테고리입니다.", "error");
+            showToastIfAvailable("카테고리가 존재합니다. 다른 카테고리를 적어주세요.", "error");
             return;
         }
         
