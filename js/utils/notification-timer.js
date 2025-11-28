@@ -285,9 +285,13 @@ const MediNotification = (function() {
             const rule = card.querySelector('.rule')?.textContent || '매일';
             const timeItems = card.querySelectorAll('.time-item');
 
-            // 복용 완료 여부 확인
+            // 복용 완료 또는 건너뛰기 여부 확인
             const progressText = card.querySelector('.intake-progress')?.textContent || '';
             const isDone = progressText.includes('완료');
+            const isSkipped = progressText.includes('건너뜀');
+            
+            // 건너뛴 약은 알림 제외
+            if (isSkipped) return;
 
             // 오늘 복용하는 약인지 확인
             const isToday = rule === '매일' || rule.includes(todayDay);
