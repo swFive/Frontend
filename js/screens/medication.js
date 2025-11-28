@@ -569,12 +569,56 @@ function showAddForm() {
         .map(name => `<option value="${name}">${name}</option>`)
         .join("");
     
+    // 기존 약 목록 수집 (중복 제거)
+    const existingMeds = {};
+    document.querySelectorAll(".drug-card").forEach(card => {
+        const medId = card.dataset.id;
+        if (!existingMeds[medId]) {
+            const times = [];
+            document.querySelectorAll(`.drug-card[data-id="${medId}"] .time-item`).forEach(t => {
+                const timeStr = t.innerText.trim();
+                if (timeStr && !times.includes(timeStr)) times.push(timeStr);
+            });
+            
+            existingMeds[medId] = {
+                id: medId,
+                name: card.querySelector(".drug-info__title p")?.innerText || "",
+                category: card.dataset.category || "필수 복용",
+                days: card.querySelector(".rule")?.innerText || "매일",
+                times: times.join(", "),
+                doseCount: card.dataset.doseCount || "1",
+                stock: card.dataset.stock || "30",
+                memo: card.querySelector(".drug-info__list p")?.innerText || "",
+                startDate: card.querySelector(".start-date")?.innerText || "",
+                endDate: card.querySelector(".end-date")?.innerText || ""
+            };
+        }
+    });
+    const existingMedsList = Object.values(existingMeds);
+    
+    // 기존 약 텍스트 목록 HTML
+    let existingMedsText = "";
+    if (existingMedsList.length > 0) {
+        existingMedsText = `
+        <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px;">
+            ${existingMedsList.map(med => `
+                <span class="existing-med-text" data-med='${JSON.stringify(med).replace(/'/g, "&#39;")}'
+                    style="padding: 4px 10px; background: #f0f7ff; color: #4c82ff; 
+                    border-radius: 12px; font-size: 13px; cursor: pointer;
+                    border: 1px solid #4c82ff; transition: all 0.2s;">
+                    ${med.name}
+                </span>
+            `).join("")}
+        </div>`;
+    }
+    
     const wrapper = document.createElement("div");
     wrapper.className = "modal-bg";
     wrapper.innerHTML = `
-    <div class="modal">
+    <div class="modal" style="max-height: 90vh; overflow-y: auto;">
       <h3>💊 새 약 추가</h3>
       <label>약 이름 <input type="text" id="drugName" placeholder="예: 타이레놀"></label>
+      ${existingMedsText}
       <label>카테고리 
         <div style="display: flex; gap: 8px; align-items: center;">
           <select id="drugType" style="flex: 1;">${categoryOptions}</select>
@@ -617,6 +661,34 @@ function showAddForm() {
     const today = new Date().toISOString().split('T')[0];
     wrapper.querySelector("#startDate").value = today;
     wrapper.querySelector("#endDate").value = "2025-12-31";
+
+    // 기존 약 텍스트 클릭 시 정보 자동 완성
+    wrapper.querySelectorAll(".existing-med-text").forEach(span => {
+        span.onclick = () => {
+            const med = JSON.parse(span.dataset.med);
+            
+            // 폼에 값 채우기
+            wrapper.querySelector("#drugName").value = med.name;
+            wrapper.querySelector("#drugType").value = med.category;
+            wrapper.querySelector("#drugDays").value = med.days === "매일" ? "월,화,수,목,금,토,일" : med.days;
+            wrapper.querySelector("#drugTimes").value = med.times;
+            wrapper.querySelector("#doseCount").value = med.doseCount;
+            wrapper.querySelector("#drugStock").value = med.stock;
+            wrapper.querySelector("#drugMemo").value = med.memo;
+            if (med.startDate) wrapper.querySelector("#startDate").value = med.startDate;
+            if (med.endDate) wrapper.querySelector("#endDate").value = med.endDate;
+            
+            // 선택된 항목 스타일 변경
+            wrapper.querySelectorAll(".existing-med-text").forEach(s => {
+                s.style.background = "#f0f7ff";
+                s.style.color = "#4c82ff";
+            });
+            span.style.background = "#4c82ff";
+            span.style.color = "white";
+            
+            showToastIfAvailable(`'${med.name}' 정보가 불러와졌습니다. 시간을 수정 후 저장하세요.`, "info");
+        };
+    });
 
     // 카테고리 추가 버튼 클릭 시 입력 영역 표시
     const newCatSection = wrapper.querySelector("#newCategorySection");
