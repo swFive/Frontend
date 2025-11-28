@@ -282,13 +282,8 @@ function createCard(cardData) {
 
     <div class="drug-info">
       <div class="drug-info__title"><p>${cardData.title}</p></div>
-      <div class="drug-info__subtitle">
-        <select class="inline-select">
-          <option ${cardData.subtitle==="필수 복용" ? "selected" : ""}>필수 복용</option>
-          <option ${cardData.subtitle==="기간제" ? "selected" : ""}>기간제</option>
-          <option ${cardData.subtitle==="건강보조제" ? "selected" : ""}>건강보조제</option>
-          <option ${!(cardData.subtitle in typeColors) ? "selected" : ""}>${cardData.subtitle}</option>
-        </select>
+      <div class="drug-info__subtitle editable-category" title="클릭하여 카테고리 수정">
+        <p class="category-text">${cardData.subtitle || "필수 복용"}</p>
       </div>
       <div class="drug-info__list">
         <div><p>${cardData.drugs[0] || "메모 없음"}</p></div>
@@ -493,8 +488,10 @@ function createCard(cardData) {
     });
 
     // 기타 수정 리스너
-    const catSelect = newCard.querySelector(".drug-info__subtitle select");
-    catSelect.addEventListener("change", () => updateMedicationData(newCard, { category: catSelect.value }));
+    const categoryEl = newCard.querySelector(".editable-category");
+    categoryEl.style.cursor = "pointer";
+    categoryEl.addEventListener("click", () => showCategoryEditor(newCard, cardData));
+    
     makeEditable(newCard.querySelector(".drug-info__title p"), newCard, "name");
     makeEditable(newCard.querySelector(".drug-info__list p"), newCard, "memo");
 
@@ -745,6 +742,74 @@ function showStockEditor(cardElement) {
             wrapper.remove();
         }
     };
+}
+
+// ==================================================
+// 🔹 카테고리 편집 모달
+// ==================================================
+function showCategoryEditor(cardElement, cardData) {
+    const currentCategory = cardElement.querySelector(".category-text")?.innerText || "필수 복용";
+    const medicationId = cardElement.dataset.id;
+    
+    const wrapper = document.createElement("div");
+    wrapper.className = "modal-bg";
+    wrapper.innerHTML = `
+    <div class="modal" style="max-width: 320px;">
+      <h3>📁 카테고리 수정</h3>
+      <p style="margin-bottom: 15px; color: #666;">카테고리를 선택하세요</p>
+      <div class="category-options" style="display: flex; flex-direction: column; gap: 10px;">
+        <button class="category-option-btn ${currentCategory === '필수 복용' ? 'selected' : ''}" data-value="필수 복용" style="padding: 12px; border: 2px solid ${currentCategory === '필수 복용' ? '#f28282' : '#ddd'}; border-radius: 8px; background: ${currentCategory === '필수 복용' ? '#ffd0d0' : '#fff'}; cursor: pointer; font-size: 14px;">
+          🔴 필수 복용
+        </button>
+        <button class="category-option-btn ${currentCategory === '기간제' ? 'selected' : ''}" data-value="기간제" style="padding: 12px; border: 2px solid ${currentCategory === '기간제' ? '#8282f2' : '#ddd'}; border-radius: 8px; background: ${currentCategory === '기간제' ? '#d0d0ff' : '#fff'}; cursor: pointer; font-size: 14px;">
+          🔵 기간제
+        </button>
+        <button class="category-option-btn ${currentCategory === '건강보조제' ? 'selected' : ''}" data-value="건강보조제" style="padding: 12px; border: 2px solid ${currentCategory === '건강보조제' ? '#ffe12e' : '#ddd'}; border-radius: 8px; background: ${currentCategory === '건강보조제' ? '#fff7b0' : '#fff'}; cursor: pointer; font-size: 14px;">
+          🟡 건강보조제
+        </button>
+      </div>
+      <div class="modal-btns" style="margin-top: 20px;">
+        <button class="cancel-modal-btn">취소</button>
+      </div>
+    </div>
+    `;
+    document.body.appendChild(wrapper);
+    
+    // 카테고리 선택 이벤트
+    wrapper.querySelectorAll(".category-option-btn").forEach(btn => {
+        btn.addEventListener("click", async () => {
+            const newCategory = btn.dataset.value;
+            const color = typeColors[newCategory] || { light: "#e6d6ff", deep: "#a86af2" };
+            
+            // 같은 약(medicationId)의 모든 카드 업데이트
+            const allCardsWithSameId = document.querySelectorAll(`.drug-card[data-id="${medicationId}"]`);
+            allCardsWithSameId.forEach(card => {
+                // 카테고리 텍스트 업데이트
+                const categoryTextEl = card.querySelector(".category-text");
+                if (categoryTextEl) categoryTextEl.innerText = newCategory;
+                card.dataset.category = newCategory;
+                
+                // 색상 업데이트
+                const lightEl = card.querySelector(".color-tool-red__lilight");
+                const deepEl = card.querySelector(".color-tool-red__deep");
+                if (lightEl) lightEl.style.background = color.light;
+                if (deepEl) deepEl.style.background = color.deep;
+            });
+            
+            // 서버 업데이트 (updateMedicineInfo 사용 - category 포함)
+            const success = await updateMedicineInfo(medicationId, cardElement, { category: newCategory });
+            
+            wrapper.remove();
+            
+            if (success) {
+                showToastIfAvailable("카테고리가 변경되었습니다.", "success");
+            }
+        });
+    });
+    
+    // 취소 버튼
+    wrapper.querySelector(".cancel-modal-btn").addEventListener("click", () => wrapper.remove());
+    wrapper.addEventListener("click", (e) => { if (e.target === wrapper) wrapper.remove(); });
 }
 
 // ==================================================
@@ -1144,10 +1209,10 @@ async function updateMedicineInfo(medicationId, cardElement, changes) {
         refillThreshold
     };
     
-    console.log("[Medicine] PUT /api/medicines/" + medicationId, payload);
+    console.log("[Medicine] PUT /api/mediinfo/medicines/" + medicationId, payload);
     
     try {
-        const res = await fetch(`${API_BASE_URL}/api/medicines/${medicationId}`, {
+        const res = await fetch(`${API_BASE_URL}/api/mediinfo/medicines/${medicationId}`, {
             method: "PUT",
             headers: getAuthHeaders(),
             body: JSON.stringify(payload)

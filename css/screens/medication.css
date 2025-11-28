@@ -819,3 +819,27 @@ select.inline-select {
     color: #3b82f6;
     background: #eff6ff;
 }
+
+/* 카테고리 편집 스타일 */
+.editable-category {
+    cursor: pointer;
+    transition: all 0.2s ease;
+    padding: 4px 8px;
+    border-radius: 6px;
+    display: inline-block;
+}
+
+.editable-category:hover {
+    background: rgba(0, 0, 0, 0.05);
+    transform: scale(1.02);
+}
+
+.editable-category .category-text {
+    margin: 0;
+    font-size: var(--drug-info-subtitle-size, 16px);
+}
+
+.category-option-btn:hover {
+    transform: scale(1.02);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
