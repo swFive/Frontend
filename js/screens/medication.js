@@ -600,7 +600,7 @@ function showAddForm() {
     let existingMedsText = "";
     if (existingMedsList.length > 0) {
         existingMedsText = `
-        <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px;">
+        <div id="existingMedsSection" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; align-items: center;">
             ${existingMedsList.map(med => `
                 <span class="existing-med-text" data-med='${JSON.stringify(med).replace(/'/g, "&#39;")}'
                     style="padding: 4px 10px; background: #f0f7ff; color: #4c82ff; 
@@ -647,6 +647,7 @@ function showAddForm() {
       
       <label>주기(요일) <input type="text" id="drugDays" placeholder="예: 월,수,금 (쉼표구분)"></label>
       <label>시간 <input type="text" id="drugTimes" placeholder="예: 09:00, 18:00"></label>
+      <div id="existingTimesDisplay" style="display: none; margin-bottom: 10px; padding: 8px; background: #fff9e6; border-radius: 6px;"></div>
       <label>1회 복용량 <input type="number" id="doseCount" value="1"></label>
       <label>총 재고 <input type="number" id="drugStock" value="30"></label>
       <label>메모 <input type="text" id="drugMemo" placeholder="식후 30분"></label>
@@ -669,14 +670,51 @@ function showAddForm() {
             
             // 폼에 값 채우기
             wrapper.querySelector("#drugName").value = med.name;
+            wrapper.querySelector("#drugName").readOnly = true;
+            wrapper.querySelector("#drugName").style.background = "#f0f0f0";
+            
             wrapper.querySelector("#drugType").value = med.category;
+            wrapper.querySelector("#drugType").disabled = true;
+            wrapper.querySelector("#drugType").style.background = "#f0f0f0";
+            
             wrapper.querySelector("#drugDays").value = med.days === "매일" ? "월,화,수,목,금,토,일" : med.days;
-            wrapper.querySelector("#drugTimes").value = med.times;
+            wrapper.querySelector("#drugDays").readOnly = true;
+            wrapper.querySelector("#drugDays").style.background = "#f0f0f0";
+            
+            // 기존 시간들을 태그로 표시
+            const existingTimesContainer = wrapper.querySelector("#existingTimesDisplay");
+            if (existingTimesContainer) {
+                const timesArr = med.times.split(",").map(t => t.trim()).filter(t => t);
+                existingTimesContainer.innerHTML = timesArr.length > 0 ? `
+                    <p style="font-size: 12px; color: #666; margin-bottom: 4px;">기존 시간:</p>
+                    <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+                        ${timesArr.map(t => `<span style="padding: 2px 8px; background: #e0e0e0; border-radius: 10px; font-size: 12px;">${t}</span>`).join("")}
+                    </div>
+                ` : "";
+                existingTimesContainer.style.display = "block";
+            }
+            
+            // 새 시간 입력 필드는 비워두기 (새로 추가할 시간 입력용)
+            wrapper.querySelector("#drugTimes").value = "";
+            wrapper.querySelector("#drugTimes").placeholder = "새로 추가할 시간 입력 (예: 14:00)";
+            
             wrapper.querySelector("#doseCount").value = med.doseCount;
+            wrapper.querySelector("#doseCount").readOnly = true;
+            wrapper.querySelector("#doseCount").style.background = "#f0f0f0";
+            
             wrapper.querySelector("#drugStock").value = med.stock;
+            wrapper.querySelector("#drugStock").readOnly = true;
+            wrapper.querySelector("#drugStock").style.background = "#f0f0f0";
+            
             wrapper.querySelector("#drugMemo").value = med.memo;
+            
             if (med.startDate) wrapper.querySelector("#startDate").value = med.startDate;
+            wrapper.querySelector("#startDate").readOnly = true;
+            wrapper.querySelector("#startDate").style.background = "#f0f0f0";
+            
             if (med.endDate) wrapper.querySelector("#endDate").value = med.endDate;
+            wrapper.querySelector("#endDate").readOnly = true;
+            wrapper.querySelector("#endDate").style.background = "#f0f0f0";
             
             // 선택된 항목 스타일 변경
             wrapper.querySelectorAll(".existing-med-text").forEach(s => {
@@ -686,7 +724,69 @@ function showAddForm() {
             span.style.background = "#4c82ff";
             span.style.color = "white";
             
-            showToastIfAvailable(`'${med.name}' 정보가 불러와졌습니다. 시간을 수정 후 저장하세요.`, "info");
+            // 선택 해제 버튼 표시
+            let clearBtn = wrapper.querySelector("#clearSelectionBtn");
+            if (!clearBtn) {
+                clearBtn = document.createElement("button");
+                clearBtn.id = "clearSelectionBtn";
+                clearBtn.type = "button";
+                clearBtn.textContent = "✕ 선택 해제";
+                clearBtn.style.cssText = "margin-left: 8px; padding: 4px 10px; background: #ff6b6b; color: white; border: none; border-radius: 12px; font-size: 12px; cursor: pointer;";
+                wrapper.querySelector("#existingMedsSection")?.appendChild(clearBtn);
+                
+                clearBtn.onclick = () => {
+                    // 모든 필드 초기화
+                    wrapper.querySelector("#drugName").value = "";
+                    wrapper.querySelector("#drugName").readOnly = false;
+                    wrapper.querySelector("#drugName").style.background = "";
+                    
+                    wrapper.querySelector("#drugType").disabled = false;
+                    wrapper.querySelector("#drugType").style.background = "";
+                    wrapper.querySelector("#drugType").value = "필수 복용";
+                    
+                    wrapper.querySelector("#drugDays").value = "";
+                    wrapper.querySelector("#drugDays").readOnly = false;
+                    wrapper.querySelector("#drugDays").style.background = "";
+                    
+                    wrapper.querySelector("#drugTimes").value = "";
+                    wrapper.querySelector("#drugTimes").placeholder = "예: 09:00, 18:00";
+                    
+                    const existingTimesDisplay = wrapper.querySelector("#existingTimesDisplay");
+                    if (existingTimesDisplay) {
+                        existingTimesDisplay.innerHTML = "";
+                        existingTimesDisplay.style.display = "none";
+                    }
+                    
+                    wrapper.querySelector("#doseCount").value = "1";
+                    wrapper.querySelector("#doseCount").readOnly = false;
+                    wrapper.querySelector("#doseCount").style.background = "";
+                    
+                    wrapper.querySelector("#drugStock").value = "30";
+                    wrapper.querySelector("#drugStock").readOnly = false;
+                    wrapper.querySelector("#drugStock").style.background = "";
+                    
+                    wrapper.querySelector("#drugMemo").value = "";
+                    
+                    wrapper.querySelector("#startDate").value = today;
+                    wrapper.querySelector("#startDate").readOnly = false;
+                    wrapper.querySelector("#startDate").style.background = "";
+                    
+                    wrapper.querySelector("#endDate").value = "2025-12-31";
+                    wrapper.querySelector("#endDate").readOnly = false;
+                    wrapper.querySelector("#endDate").style.background = "";
+                    
+                    // 스타일 초기화
+                    wrapper.querySelectorAll(".existing-med-text").forEach(s => {
+                        s.style.background = "#f0f7ff";
+                        s.style.color = "#4c82ff";
+                    });
+                    
+                    clearBtn.remove();
+                    showToastIfAvailable("선택이 해제되었습니다.", "info");
+                };
+            }
+            
+            showToastIfAvailable(`'${med.name}' 선택됨. 새로 추가할 시간을 입력하세요.`, "info");
         };
     });
 
@@ -765,6 +865,32 @@ function showAddForm() {
         if (missingFields.length > 0) {
             showToastIfAvailable(`${missingFields.join(", ")}을(를) 입력해주세요.`, "error");
             return;
+        }
+        
+        // 기존 약 선택된 경우 시간 중복 검사
+        const isExistingMed = wrapper.querySelector("#drugName").readOnly;
+        if (isExistingMed) {
+            // 기존 시간 가져오기
+            const existingTimesDisplay = wrapper.querySelector("#existingTimesDisplay");
+            const existingTimesSpans = existingTimesDisplay?.querySelectorAll("span") || [];
+            const existingTimes = Array.from(existingTimesSpans).map(s => s.textContent.trim());
+            
+            // 입력한 시간들 파싱
+            const newTimesArr = times.split(",").map(t => t.trim()).filter(t => t);
+            
+            // 중복 검사
+            const duplicateTimes = newTimesArr.filter(t => existingTimes.includes(t));
+            if (duplicateTimes.length > 0) {
+                showToastIfAvailable(`이미 존재하는 시간입니다: ${duplicateTimes.join(", ")}. 다른 시간을 입력해주세요.`, "error");
+                return;
+            }
+        } else {
+            // 새 약 등록 시 약 이름 중복 검사
+            const existingNames = existingMedsList.map(med => med.name);
+            if (existingNames.includes(name)) {
+                showToastIfAvailable(`'${name}' 약이 이미 존재합니다. 다른 이름을 입력하거나 기존 약을 선택해주세요.`, "error");
+                return;
+            }
         }
 
         const payload = {
