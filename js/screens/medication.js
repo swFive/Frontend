@@ -315,9 +315,7 @@ function createCard(cardData) {
         deleteMedication(cardData.id, newCard, scheduleId);
     });
 
-    newCard.querySelector(".drug-info").addEventListener("click", (e) => {
-        if (!e.target.closest("select")) showStockEditor(newCard);
-    });
+    // drug-info 영역 클릭 이벤트 제거 (개별 필드에서 처리)
 
     // 🟢 복용 버튼 로직
     const takeBtn = newCard.querySelector("button.take-btn");
