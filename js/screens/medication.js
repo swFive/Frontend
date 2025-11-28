@@ -893,33 +893,65 @@ function showAddForm() {
             }
         }
 
-        const payload = {
-            userId: 0,
-            name, category, memo, times, days,
-            startDate, endDate,
-            doseUnitQuantity, initialQuantity,
-            currentQuantity: initialQuantity,
-            refillThreshold: 5,
-            isPublic: true
-        };
-
         try {
-            const res = await fetch(`${API_BASE_URL}/api/mediinfo/medicines`, {
-                method: "POST",
-                headers: getAuthHeaders(),
-                body: JSON.stringify(payload)
-            });
-
-            if (res.ok) {
-                alert("약이 등록되었습니다.");
-                wrapper.remove();
-                loadCards();
+            if (isExistingMed) {
+                // 기존 약에 새 스케줄(시간) 추가
+                const selectedMed = existingMedsList.find(med => med.name === name);
+                if (!selectedMed) {
+                    showToastIfAvailable("선택된 약 정보를 찾을 수 없습니다.", "error");
+                    return;
+                }
+                
+                const medicationId = selectedMed.id;
+                const newTimesArr = times.split(",").map(t => t.trim()).filter(t => t);
+                
+                let allSuccess = true;
+                for (const time of newTimesArr) {
+                    const result = await createNewSchedule(medicationId, {
+                        intakeTime: time,
+                        frequency: days,
+                        startDate: startDate,
+                        endDate: endDate
+                    });
+                    if (!result) allSuccess = false;
+                }
+                
+                if (allSuccess) {
+                    showToastIfAvailable(`'${name}'에 새 복용 시간이 추가되었습니다.`, "success");
+                    wrapper.remove();
+                    loadCards();
+                } else {
+                    showToastIfAvailable("일부 시간 추가에 실패했습니다.", "error");
+                }
             } else {
-                alert("등록 실패");
+                // 새 약 등록
+                const payload = {
+                    userId: 0,
+                    name, category, memo, times, days,
+                    startDate, endDate,
+                    doseUnitQuantity, initialQuantity,
+                    currentQuantity: initialQuantity,
+                    refillThreshold: 5,
+                    isPublic: true
+                };
+
+                const res = await fetch(`${API_BASE_URL}/api/mediinfo/medicines`, {
+                    method: "POST",
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify(payload)
+                });
+
+                if (res.ok) {
+                    showToastIfAvailable("약이 등록되었습니다.", "success");
+                    wrapper.remove();
+                    loadCards();
+                } else {
+                    showToastIfAvailable("등록 실패", "error");
+                }
             }
         } catch (e) {
             console.error(e);
-            alert("서버 오류");
+            showToastIfAvailable("서버 오류", "error");
         }
     };
 }
