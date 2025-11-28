@@ -30,6 +30,19 @@ function getAuthHeaders() {
     };
 }
 
+// [알림] - userId 헬퍼 추가. 현재 로그인한 사용자ID 조회
+function getCurrentUserId() {
+    try {
+        const raw = localStorage.getItem("mc_user");
+        if (!raw) return null;
+        const user = JSON.parse(raw);
+        return user.id || user.userId || null;
+    } catch (e) {
+        console.warn("mc_user 파싱 실패:", e);
+        return null;
+    }
+}
+
 // ==================================================
 // 🔹 [R] API에서 약 목록 불러오기 (GET)
 // ==================================================
@@ -119,39 +132,60 @@ async function loadCards() {
 }
 
 // ==================================================
-// 🔹 API 호출 함수들
+// 🔹 [알림] 복용 기록 생성 (POST /api/intake-logs)
+// 지원 상태: TAKEN, LATE(지각), SKIPPED(건너뛰기)
 // ==================================================
+async function recordIntake(scheduleId, status = "TAKEN", lateMinutes = null) {
+    const userId = getCurrentUserId();
+    if (!userId) {
+        if (window.showToast) {
+            window.showToast("로그인 정보가 없습니다. 다시 로그인해 주세요.", { type: "error" });
+        } else {
+            alert("로그인 정보가 없습니다. 다시 로그인해 주세요.");
+        }
+        return false;
+    }
 
-async function recordIntake(scheduleId, status = "TAKEN") {
+    const payload = {
+        scheduleId,
+        userId,
+        intakeStatus: status
+    };
+
+    // 지각일 때만 lateMinutes 전송
+    if (status === "LATE" && typeof lateMinutes === "number") {
+        payload.lateMinutes = lateMinutes;
+    }
+
     try {
-        const response = await fetch(`${API_BASE_URL}/api/logs/intake`, {
+        const response = await fetch(`${API_BASE_URL}/api/intake-logs`, {
             method: "POST",
             headers: getAuthHeaders(),
-            body: JSON.stringify({
-                scheduleId: scheduleId,
-                intakeStatus: status
-                // recordTime은 서버 시간 사용
-            })
+            body: JSON.stringify(payload)
         });
-        return response.ok;
+
+        if (response.status === 400) {
+            window.showToast?.("입력값을 다시 확인해 주세요.", { type: "error" }) || alert("입력값을 다시 확인해 주세요.");
+            return false;
+        }
+        if (response.status === 409) {
+            window.showToast?.("이미 처리된 일정이거나 잘못된 요청입니다.", { type: "error" }) || alert("이미 처리된 일정이거나 잘못된 요청입니다.");
+            return false;
+        }
+        if (!response.ok) {
+            window.showToast?.("복용 기록 저장 중 오류가 발생했습니다.", { type: "error" }) || alert("복용 기록 저장 중 오류가 발생했습니다.");
+            return false;
+        }
+
+        // 201 + log 객체가 오지만, 현재 UI에서는 값이 필요 없으므로 버림
+        return true;
     } catch (e) {
-        console.error(e);
+        console.error("intake-logs 호출 중 오류:", e);
+        window.showToast?.("네트워크 오류로 복용 기록을 저장하지 못했습니다.", { type: "error" }) || alert("네트워크 오류로 복용 기록을 저장하지 못했습니다.");
         return false;
     }
 }
 
-async function deleteIntakeLog(logId) {
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/logs/${logId}`, {
-            method: "DELETE",
-            headers: getAuthHeaders()
-        });
-        return response.ok;
-    } catch (e) {
-        console.error(e);
-        return false;
-    }
-}
 
 // ==================================================
 // 🔹 카드 생성 및 DOM 삽입
@@ -214,6 +248,8 @@ function createCard(cardData) {
       </div>
       <div class="drug-btn-group">
         <button class="take-btn ${isDone ? 'disabled' : ''}" ${isDone ? 'disabled' : ''}>💊 복용</button>
+        <button class="late-btn ${isDone ? 'disabled' : ''}" ${isDone ? 'disabled' : ''}>⏰ 지각</button>
+        <button class="skip-btn ${isDone ? 'disabled' : ''}" ${isDone ? 'disabled' : ''}>⏭ 건너뛰기</button>
         <button class="cancel-btn ${!hasAnyTaken ? 'disabled' : ''}" ${!hasAnyTaken ? 'disabled' : ''}>↩ 취소</button>
       </div>
     </div>
@@ -295,6 +331,81 @@ function createCard(cardData) {
             alert("취소 실패");
             cancelBtn.disabled = false;
             cancelBtn.textContent = "↩ 취소";
+        }
+    });
+
+    // 🟡 지각 복용 버튼 로직
+    const lateBtn = newCard.querySelector("button.late-btn");
+    lateBtn.addEventListener("click", async () => {
+        if (lateBtn.disabled) return;
+        
+        const dose = parseInt(newCard.dataset.doseCount);
+        let currentStock = parseInt(newCard.dataset.stock);
+        const targetScheduleId = newCard.dataset.nextScheduleId;
+        
+        if (!targetScheduleId) {
+            return alert("오늘 예정된 일정이 없습니다.");
+        }
+
+        if (currentStock < dose) {
+            return alert("⚠️ 재고가 부족합니다!");
+        }
+
+        // 지각 시간(분) 입력 받기
+        const lateMinutesStr = prompt("몇 분 지각하셨나요?", "10");
+        if (lateMinutesStr === null) return; // 취소 버튼 클릭
+        
+        const lateMinutes = parseInt(lateMinutesStr);
+        if (isNaN(lateMinutes) || lateMinutes < 0) {
+            return alert("올바른 지각 시간(분)을 입력해주세요.");
+        }
+
+        // 버튼 비활성화 (중복 클릭 방지)
+        lateBtn.disabled = true;
+        lateBtn.textContent = "처리중...";
+
+        // 지각 복용 기록 생성
+        const logRecorded = await recordIntake(targetScheduleId, "LATE", lateMinutes);
+
+        if (logRecorded) {
+            showToastIfAvailable(`지각 복용이 기록되었습니다. (${lateMinutes}분 지연)`, "warning");
+            window.location.reload();
+        } else {
+            alert("기록 실패");
+            lateBtn.disabled = false;
+            lateBtn.textContent = "⏰ 지각";
+        }
+    });
+
+    // ⏭ 건너뛰기 버튼 로직
+    const skipBtn = newCard.querySelector("button.skip-btn");
+    skipBtn.addEventListener("click", async () => {
+        if (skipBtn.disabled) return;
+        
+        const targetScheduleId = newCard.dataset.nextScheduleId;
+        
+        if (!targetScheduleId) {
+            return alert("오늘 예정된 일정이 없습니다.");
+        }
+
+        if (!confirm("이 복용을 건너뛰시겠습니까?\n(재고는 차감되지 않습니다)")) {
+            return;
+        }
+
+        // 버튼 비활성화 (중복 클릭 방지)
+        skipBtn.disabled = true;
+        skipBtn.textContent = "처리중...";
+
+        // 건너뛰기 기록 생성 (SKIPPED 상태, 재고 차감 안 함)
+        const logRecorded = await recordIntake(targetScheduleId, "SKIPPED");
+
+        if (logRecorded) {
+            showToastIfAvailable("복용을 건너뛰었습니다.", "info");
+            window.location.reload();
+        } else {
+            alert("기록 실패");
+            skipBtn.disabled = false;
+            skipBtn.textContent = "⏭ 건너뛰기";
         }
     });
 
@@ -391,30 +502,54 @@ function showAddForm() {
     };
 }
 
+// [알림] - 재고 수동 수정 -> 재고/복용량/리필 한도만 수정하는 용도
 async function updateMedicationData(cardElement, changes) {
     const id = cardElement.dataset.id;
-    const payload = {
-        name: cardElement.querySelector(".drug-info__title p").innerText,
-        category: cardElement.dataset.category || "기타",
-        memo: cardElement.dataset.memo || "",
-        doseUnitQuantity: parseInt(cardElement.dataset.doseCount),
+
+    // 현재 카드에 저장된 값 기준 기본 payload
+    const basePayload = {
         currentQuantity: parseInt(cardElement.dataset.stock),
-        refillThreshold: 5,
-        ...changes
+        doseUnitQuantity: parseInt(cardElement.dataset.doseCount),
+        refillThreshold: parseInt(cardElement.dataset.refillThreshold || "5")
     };
 
+    // 변경값 merge 후, 허용된 세 필드만 필터링
+    const merged = { ...basePayload, ...changes };
+    const payload = {};
+
+    ["currentQuantity", "doseUnitQuantity", "refillThreshold"].forEach((key) => {
+        if (typeof merged[key] === "number" && !Number.isNaN(merged[key])) {
+            payload[key] = merged[key];
+        }
+    });
+
+    if (Object.keys(payload).length === 0) {
+        console.warn("updateMedicationData: 변경할 필드가 없습니다.");
+        return false;
+    }
+
     try {
-        const res = await fetch(`${API_BASE_URL}/api/mediinfo/medicines/${id}`, {
-            method: "PUT",
+        const res = await fetch(`${API_BASE_URL}/api/medications/${id}`, {
+            method: "PATCH",
             headers: getAuthHeaders(),
             body: JSON.stringify(payload)
         });
+
+        if (res.status === 400) {
+            alert("재고/복용량/리필 임계치 값이 잘못되었습니다.");
+            return false;
+        }
+        if (res.status === 404) {
+            alert("해당 약 정보를 찾을 수 없습니다.");
+            return false;
+        }
         return res.ok;
     } catch (e) {
         console.error(e);
         return false;
     }
 }
+
 
 async function deleteMedication(id, cardElement) {
     if (!confirm("삭제하시겠습니까?")) return;
