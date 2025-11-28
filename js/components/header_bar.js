@@ -518,44 +518,34 @@ const initNotificationPopup = () => {
         */
     };
 
-    // 목업 데이터 사용
+    // 저장된 알림 또는 목업 데이터 사용
     const useMockData = () => {
-        const now = new Date();
-        notifications = [
-            {
-                id: 1,
-                title: "약 복용 알림",
-                body: "타이레놀 복용 시간입니다!",
-                type: "info",
-                isRead: false,
-                createdAt: new Date(now - 10 * 60000).toISOString()
-            },
-            {
-                id: 2,
-                title: "복용 완료",
-                body: "오늘 아침 복용을 완료했습니다. 수고하셨어요!",
-                type: "success",
-                isRead: false,
-                createdAt: new Date(now - 2 * 3600000).toISOString()
-            },
-            {
-                id: 3,
-                title: "재고 부족 경고",
-                body: "타이레놀 재고가 5정 남았습니다. 리필이 필요합니다.",
-                type: "warning",
-                isRead: true,
-                createdAt: new Date(now - 24 * 3600000).toISOString()
-            },
-            {
-                id: 4,
-                title: "복용 누락",
-                body: "어제 저녁 복용을 놓쳤습니다.",
-                type: "error",
-                isRead: true,
-                createdAt: new Date(now - 48 * 3600000).toISOString()
+        // 로컬 스토리지에서 알림 불러오기
+        try {
+            const stored = localStorage.getItem('mc_notifications');
+            if (stored) {
+                const savedNotifications = JSON.parse(stored);
+                if (savedNotifications.length > 0) {
+                    notifications = savedNotifications.map(n => ({
+                        id: n.id,
+                        title: n.title,
+                        body: n.body,
+                        type: "info",
+                        isRead: n.read || false,
+                        createdAt: n.timestamp
+                    }));
+                    renderNotifications();
+                    updateNotifDot();
+                    return;
+                }
             }
-        ];
-        renderNotifications();
+        } catch (e) {
+            // 파싱 실패 시 목업 데이터 사용
+        }
+        
+        // 저장된 알림이 없으면 빈 상태 표시
+        notifications = [];
+        renderEmpty("받은 알림이 없습니다.\n약 복용 시간이 되면 알림이 표시됩니다.");
         updateNotifDot();
     };
 
