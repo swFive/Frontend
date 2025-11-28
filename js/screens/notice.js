@@ -130,11 +130,13 @@ async function fetchAllLogs(medications) {
     Object.entries(calendarData).forEach(([dateStr, dayLogs]) => {
         if (Array.isArray(dayLogs)) {
             dayLogs.forEach(log => {
+                console.log("[notice] 원본 로그:", dateStr, log);
+                const status = log.status || log.intakeStatus || log.logStatus;
                 allLogs.push({
                     ...log,
-                    medicationName: log.medicationName || log.name,
+                    medicationName: log.medicationName || log.name || log.medicineName,
                     recordTime: `${dateStr}T${log.intakeTime || "00:00:00"}`,
-                    intakeStatus: log.status || log.intakeStatus
+                    intakeStatus: status
                 });
             });
         }
@@ -159,7 +161,7 @@ function getTimeSlot(timeStr) {
 }
 
 // ===================================================================
-// 2-3) 클라이언트 통계 계산 (복용 기록 기반)
+// 2-3) 클라이언트 통계 계산 (저장된 스케줄 기반)
 // ===================================================================
 function calculateStatistics(medications, logs) {
     const now = new Date();
@@ -172,169 +174,134 @@ function calculateStatistics(medications, logs) {
     weekStart.setDate(today.getDate() - today.getDay());
     const weekStartStr = weekStart.toISOString().split('T')[0];
     
+    // 이번 달 시작일
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    const monthStartStr = monthStart.toISOString().split('T')[0];
+    
     console.log("[notice] 통계 계산 시작...");
     console.log("[notice] 오늘:", todayStr);
     console.log("[notice] 이번 주 시작:", weekStartStr);
+    console.log("[notice] 이번 달 시작:", monthStartStr);
     
-    // 복용 기록을 날짜별로 정리
-    const logsByDate = {};
+    // 요일 이름 배열
+    const dayNames = ["일", "월", "화", "수", "목", "금", "토"];
+    const dayKorToNum = { "일": 0, "월": 1, "화": 2, "수": 3, "목": 4, "금": 5, "토": 6 };
+    
+    // 복용 기록을 날짜+스케줄ID로 정리 (빠른 조회용)
+    const logMap = {};
     logs.forEach(log => {
         let dateStr = null;
         if (log.recordTime) {
-            if (log.recordTime.includes('T')) {
-                dateStr = log.recordTime.split('T')[0];
-            } else {
-                dateStr = log.recordTime.substring(0, 10);
-            }
+            dateStr = log.recordTime.includes('T') 
+                ? log.recordTime.split('T')[0] 
+                : log.recordTime.substring(0, 10);
         }
         if (!dateStr) return;
         
-        if (!logsByDate[dateStr]) {
-            logsByDate[dateStr] = [];
-        }
-        logsByDate[dateStr].push(log);
+        const key = `${dateStr}_${log.scheduleId || log.medicationId}_${log.intakeTime || ""}`;
+        logMap[key] = log;
     });
     
-    console.log("[notice] 날짜별 복용 기록:", Object.keys(logsByDate));
+    console.log("[notice] 복용 기록 맵 키:", Object.keys(logMap).length, "개");
     
     // 이번 주 통계 계산
     let weeklyTaken = 0;
     let weeklyLate = 0;
     let weeklyMissed = 0;
     
+    // 이번 달 통계 계산
+    let monthlyTotal = 0;
+    let monthlySuccess = 0;
+    
     // 약물별 미복용 집계
     const drugMissedCount = {};
     
     // 시간대별 미복용 집계
-    const timeSlotMissed = {
-        "아침": 0,
-        "점심": 0,
-        "저녁": 0,
-        "취침전": 0
-    };
+    const timeSlotMissed = { "아침": 0, "점심": 0, "저녁": 0, "취침전": 0 };
     
     // 요일별 미복용 집계
-    const dayOfWeekMissed = {
-        "월": 0,
-        "화": 0,
-        "수": 0,
-        "목": 0,
-        "금": 0,
-        "토": 0,
-        "일": 0
-    };
+    const dayOfWeekMissed = { "월": 0, "화": 0, "수": 0, "목": 0, "금": 0, "토": 0, "일": 0 };
     
-    // 요일 이름 배열
-    const dayNames = ["일", "월", "화", "수", "목", "금", "토"];
-    
-    // 이번 주 복용 기록 분석
-    logs.forEach(log => {
-        let dateStr = null;
-        let timeStr = null;
-        
-        if (log.recordTime) {
-            if (log.recordTime.includes('T')) {
-                dateStr = log.recordTime.split('T')[0];
-                timeStr = log.recordTime.split('T')[1].substring(0, 5);
-            } else {
-                dateStr = log.recordTime.substring(0, 10);
-                timeStr = log.recordTime.substring(11, 16);
-            }
-        }
-        if (!dateStr) return;
-        
-        // 이번 주 범위인지 확인
-        if (dateStr < weekStartStr || dateStr > todayStr) return;
-        
-        const status = log.intakeStatus;
-        const slot = getTimeSlot(timeStr);
-        const logDate = new Date(dateStr);
-        const dayName = dayNames[logDate.getDay()];
-        
-        if (status === "TAKEN") {
-            weeklyTaken++;
-        } else if (status === "LATE") {
-            weeklyLate++;
-        } else if (status === "SKIPPED") {
-            weeklyMissed++;
-            timeSlotMissed[slot]++;
-            dayOfWeekMissed[dayName]++;
-            const medName = log.medicationName || "알 수 없음";
-            drugMissedCount[medName] = (drugMissedCount[medName] || 0) + 1;
-        }
-    });
-    
-    // 오늘의 미복용 통계 (schedulesWithLogs 사용)
-    const todayDayName = dayNames[today.getDay()];
-    
+    // 저장된 약의 스케줄을 기반으로 이번 주/이번 달 통계 계산
     medications.forEach(med => {
-        const schedules = med.schedulesWithLogs || [];
+        const medName = med.name || med.medicineName || "알 수 없음";
+        const schedules = med.schedules || med.schedulesWithLogs || [];
+        
         schedules.forEach(schedule => {
-            const intakeTime = schedule.intakeTime ? schedule.intakeTime.substring(0, 5) : "00:00";
-            const slot = getTimeSlot(intakeTime);
+            const frequency = schedule.frequency || "";
+            const intakeTime = schedule.intakeTime ? schedule.intakeTime.substring(0, 5) : "09:00";
+            const startDate = schedule.startDate || monthStartStr;
+            const endDate = schedule.endDate || todayStr;
+            const scheduleId = schedule.scheduleId || schedule.id;
             
-            // 시간이 지난 스케줄만 카운트
-            if (intakeTime <= currentTimeStr) {
-                if (schedule.logId) {
-                    const status = schedule.intakeStatus;
-                    if (status === "LATE") {
-                        if (!logs.some(l => l.logId === schedule.logId)) {
-                            weeklyLate++;
-                        }
+            // 복용 요일 파싱 (예: "월, 수, 금" → [1, 3, 5])
+            const daysToTake = [];
+            Object.keys(dayKorToNum).forEach(dayKor => {
+                if (frequency.includes(dayKor)) {
+                    daysToTake.push(dayKorToNum[dayKor]);
+                }
+            });
+            
+            // 매일인 경우
+            if (frequency.includes("매일") || daysToTake.length === 0) {
+                for (let i = 0; i < 7; i++) daysToTake.push(i);
+            }
+            
+            // 이번 달 1일부터 오늘까지 순회
+            const checkDate = new Date(monthStart);
+            while (checkDate <= today) {
+                const dateStr = checkDate.toISOString().split('T')[0];
+                const dayOfWeek = checkDate.getDay();
+                const dayName = dayNames[dayOfWeek];
+                
+                // 해당 날짜에 복용해야 하는지 확인
+                const shouldTake = daysToTake.includes(dayOfWeek) 
+                    && dateStr >= startDate 
+                    && dateStr <= endDate;
+                
+                if (shouldTake) {
+                    // 복용 기록 찾기
+                    const key1 = `${dateStr}_${scheduleId}_${intakeTime}`;
+                    const key2 = `${dateStr}_${med.medicationId || med.id}_${intakeTime}`;
+                    const log = logMap[key1] || logMap[key2];
+                    
+                    const status = log?.intakeStatus || log?.status || null;
+                    const slot = getTimeSlot(intakeTime);
+                    
+                    // 이번 달 통계
+                    monthlyTotal++;
+                    if (status === "TAKEN" || status === "LATE") {
+                        monthlySuccess++;
+                    } else {
+                        // 미복용
+                        drugMissedCount[medName] = (drugMissedCount[medName] || 0) + 1;
                     }
-                    if (status === "SKIPPED") {
-                        if (!logs.some(l => l.logId === schedule.logId)) {
+                    
+                    // 이번 주 통계
+                    if (dateStr >= weekStartStr && dateStr <= todayStr) {
+                        if (status === "TAKEN") {
+                            weeklyTaken++;
+                        } else if (status === "LATE") {
+                            weeklyLate++;
+                        } else {
                             weeklyMissed++;
                             timeSlotMissed[slot]++;
-                            dayOfWeekMissed[todayDayName]++;
-                            drugMissedCount[med.name] = (drugMissedCount[med.name] || 0) + 1;
+                            dayOfWeekMissed[dayName]++;
                         }
                     }
-                } else {
-                    // 기록이 없으면 미복용
-                    weeklyMissed++;
-                    timeSlotMissed[slot]++;
-                    dayOfWeekMissed[todayDayName]++;
-                    drugMissedCount[med.name] = (drugMissedCount[med.name] || 0) + 1;
                 }
+                
+                checkDate.setDate(checkDate.getDate() + 1);
             }
         });
     });
     
-    // 이번 달 복용 성공률 계산 (전체 복용 기록 기반)
-    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-    const monthStartStr = monthStart.toISOString().split('T')[0];
+    console.log("[notice] 이번 달 전체 스케줄:", monthlyTotal, "개");
+    console.log("[notice] 이번 달 복용 성공:", monthlySuccess, "개");
     
-    let monthlyTotal = 0;
-    let monthlySuccess = 0;
+    // 복용 성공률 계산
+    let successRate = monthlyTotal > 0 ? Math.round((monthlySuccess / monthlyTotal) * 100) : 0;
     
-    // 이번 달 복용 기록 분석
-    logs.forEach(log => {
-        let dateStr = null;
-        if (log.recordTime) {
-            if (log.recordTime.includes('T')) {
-                dateStr = log.recordTime.split('T')[0];
-            } else {
-                dateStr = log.recordTime.substring(0, 10);
-            }
-        }
-        if (!dateStr) return;
-        
-        // 이번 달 범위인지 확인
-        if (dateStr < monthStartStr || dateStr > todayStr) return;
-        
-        monthlyTotal++;
-        const status = log.intakeStatus;
-        if (status === "TAKEN" || status === "LATE") {
-            monthlySuccess++;
-        }
-    });
-    
-    // 성공률 계산 (기록이 없으면 0%)
-    const successRate = monthlyTotal > 0 ? Math.round((monthlySuccess / monthlyTotal) * 100) : 0;
-    
-    console.log("[notice] 이번 달 복용 기록:", monthlyTotal, "건");
-    console.log("[notice] 이번 달 복용 성공:", monthlySuccess, "건");
     console.log("[notice] 이번 달 복용 성공률:", successRate + "%");
     
     // 약물별 미복용 Top 3
