@@ -69,64 +69,69 @@ async function loadCards() {
         existingCards.forEach(card => card.remove());
 
         if (Array.isArray(data) && data.length > 0) {
+            // 모든 스케줄을 수집해서 시간순으로 정렬
+            const allScheduleCards = [];
+            
             data.forEach(item => {
                 const schedules = item.schedulesWithLogs || [];
-
-                // 시간 정렬
-                schedules.sort((a, b) => (a.intakeTime || "").localeCompare(b.intakeTime || ""));
-
-                // 시간 목록
-                let times = schedules
-                    .map(s => s.intakeTime ? s.intakeTime.substring(0, 5) : "")
-                    .filter(t => t);
-                times = [...new Set(times)];
-
-                // 복용 현황
-                let takenCount = 0;
-                let nextScheduleId = null;
-                let lastLogId = null;
-
-                for (const s of schedules) {
-                    if (s.logId) {
-                        if (s.intakeStatus === 'TAKEN' || s.intakeStatus === 'LATE') {
-                            takenCount++;
-                            lastLogId = s.logId;
-                        }
-                    } else {
-                        if (!nextScheduleId) nextScheduleId = s.scheduleId;
-                    }
+                
+                // 스케줄이 없으면 약 자체를 하나의 카드로
+                if (schedules.length === 0) {
+                    allScheduleCards.push({
+                        medicationData: item,
+                        schedule: null,
+                        intakeTime: "00:00"
+                    });
+                    return;
                 }
-
-                const firstSch = schedules[0] || {};
-
-                // 모든 스케줄 ID와 정보 저장
-                const scheduleInfos = schedules.map(s => ({
-                    scheduleId: s.scheduleId,
-                    intakeTime: s.intakeTime ? s.intakeTime.substring(0, 5) : "",
-                    frequency: s.frequency || "매일",
-                    startDate: s.startDate || "",
-                    endDate: s.endDate || ""
-                }));
-
+                
+                // 각 스케줄마다 별도의 카드 생성
+                schedules.forEach(schedule => {
+                    allScheduleCards.push({
+                        medicationData: item,
+                        schedule: schedule,
+                        intakeTime: schedule.intakeTime ? schedule.intakeTime.substring(0, 5) : "00:00"
+                    });
+                });
+            });
+            
+            // 시간순 정렬
+            allScheduleCards.sort((a, b) => a.intakeTime.localeCompare(b.intakeTime));
+            
+            // 카드 생성
+            allScheduleCards.forEach(({ medicationData, schedule }) => {
+                const item = medicationData;
+                const sch = schedule || {};
+                
+                // 현재 스케줄의 복용 여부
+                const isTaken = sch.logId && (sch.intakeStatus === 'TAKEN' || sch.intakeStatus === 'LATE');
+                
                 const cardData = {
                     id: item.medicationId,
+                    scheduleId: sch.scheduleId || null,  // 스케줄 ID 추가
                     title: item.name,
                     subtitle: item.category,
                     drugs: [item.memo || ""],
-                    rule: firstSch.frequency || "매일",
-                    time: times,
-                    next: item.nextIntakeTime || "-",
+                    rule: sch.frequency || "매일",
+                    time: sch.intakeTime ? [sch.intakeTime.substring(0, 5)] : [],
+                    next: sch.intakeTime ? sch.intakeTime.substring(0, 5) : "-",
                     dose: item.doseUnitQuantity || 1,
                     stock: item.currentQuantity || 0,
                     doseCount: item.doseUnitQuantity || 1,
-                    startDate: firstSch.startDate || "",
-                    endDate: firstSch.endDate || "",
-                    dailyTimes: times.length,
-                    takenCountToday: takenCount,
-                    nextScheduleId: nextScheduleId,
-                    lastLogId: lastLogId,
+                    startDate: sch.startDate || "",
+                    endDate: sch.endDate || "",
+                    dailyTimes: 1,
+                    takenCountToday: isTaken ? 1 : 0,
+                    nextScheduleId: sch.scheduleId || null,
+                    lastLogId: sch.logId || null,
                     refillThreshold: 5,
-                    schedules: scheduleInfos  // 모든 스케줄 정보 저장
+                    schedules: [{
+                        scheduleId: sch.scheduleId,
+                        intakeTime: sch.intakeTime ? sch.intakeTime.substring(0, 5) : "",
+                        frequency: sch.frequency || "매일",
+                        startDate: sch.startDate || "",
+                        endDate: sch.endDate || ""
+                    }]
                 };
 
                 createCard(cardData);
@@ -247,6 +252,7 @@ function createCard(cardData) {
     newCard.classList.add("drug-card");
 
     newCard.dataset.id = cardData.id;
+    newCard.dataset.scheduleId = cardData.scheduleId || "";  // 개별 스케줄 ID
     newCard.dataset.stock = cardData.stock;
     newCard.dataset.doseCount = cardData.doseCount;
     newCard.dataset.nextScheduleId = cardData.nextScheduleId || "";
@@ -310,7 +316,10 @@ function createCard(cardData) {
 
     // --- 이벤트 ---
 
-    newCard.querySelector(".delete-btn").addEventListener("click", () => deleteMedication(cardData.id, newCard));
+    newCard.querySelector(".delete-btn").addEventListener("click", () => {
+        const scheduleId = cardData.scheduleId || null;
+        deleteMedication(cardData.id, newCard, scheduleId);
+    });
 
     newCard.querySelector(".drug-info").addEventListener("click", (e) => {
         if (!e.target.closest("select")) showStockEditor(newCard);
@@ -651,17 +660,44 @@ async function updateMedicationData(cardElement, changes) {
 }
 
 
-async function deleteMedication(id, cardElement) {
-    if (!confirm("삭제하시겠습니까?")) return;
+async function deleteMedication(id, cardElement, scheduleId = null) {
+    // 스케줄 ID가 있으면 해당 시간대만 삭제, 없으면 약 전체 삭제
+    const deleteType = scheduleId ? "이 시간대" : "이 약";
+    if (!confirm(`${deleteType}를 삭제하시겠습니까?`)) return;
+    
     try {
-        const res = await fetch(`${API_BASE_URL}/api/mediinfo/medicines/${id}`, {
-            method: "DELETE",
-            headers: getAuthHeaders()
-        });
-        if (res.ok) cardElement.remove();
-        else alert("삭제 실패");
+        let res;
+        
+        if (scheduleId) {
+            // 스케줄만 삭제
+            res = await fetch(`${API_BASE_URL}/api/schedules/${scheduleId}`, {
+                method: "DELETE",
+                headers: getAuthHeaders()
+            });
+            
+            if (res.ok) {
+                cardElement.remove();
+                window.showToast?.("시간대가 삭제되었습니다.", { type: "success" });
+            } else {
+                window.showToast?.("시간대 삭제 실패", { type: "error" });
+            }
+        } else {
+            // 약 전체 삭제
+            res = await fetch(`${API_BASE_URL}/api/mediinfo/medicines/${id}`, {
+                method: "DELETE",
+                headers: getAuthHeaders()
+            });
+            
+            if (res.ok) {
+                cardElement.remove();
+                window.showToast?.("약이 삭제되었습니다.", { type: "success" });
+            } else {
+                window.showToast?.("삭제 실패", { type: "error" });
+            }
+        }
     } catch (e) {
         console.error(e);
+        window.showToast?.("삭제 중 오류가 발생했습니다.", { type: "error" });
     }
 }
 
