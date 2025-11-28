@@ -133,7 +133,20 @@ async function fetchAllLogs(medications) {
 }
 
 // ===================================================================
-// 2-2) 클라이언트 통계 계산 (복용 기록 기반)
+// 2-2) 시간대 분류 헬퍼
+// ===================================================================
+function getTimeSlot(timeStr) {
+    if (!timeStr) return "저녁";
+    const hour = parseInt(timeStr.substring(0, 2), 10);
+    
+    if (hour >= 6 && hour < 12) return "아침";
+    if (hour >= 12 && hour < 18) return "점심";
+    if (hour >= 18 && hour < 22) return "저녁";
+    return "취침전";
+}
+
+// ===================================================================
+// 2-3) 클라이언트 통계 계산 (복용 기록 기반)
 // ===================================================================
 function calculateStatistics(medications, logs) {
     const now = new Date();
@@ -153,7 +166,6 @@ function calculateStatistics(medications, logs) {
     // 복용 기록을 날짜별로 정리
     const logsByDate = {};
     logs.forEach(log => {
-        // recordTime에서 날짜 추출
         let dateStr = null;
         if (log.recordTime) {
             if (log.recordTime.includes('T')) {
@@ -180,14 +192,26 @@ function calculateStatistics(medications, logs) {
     // 약물별 미복용 집계
     const drugMissedCount = {};
     
+    // 시간대별 미복용 집계
+    const timeSlotMissed = {
+        "아침": 0,
+        "점심": 0,
+        "저녁": 0,
+        "취침전": 0
+    };
+    
     // 이번 주 복용 기록 분석
     logs.forEach(log => {
         let dateStr = null;
+        let timeStr = null;
+        
         if (log.recordTime) {
             if (log.recordTime.includes('T')) {
                 dateStr = log.recordTime.split('T')[0];
+                timeStr = log.recordTime.split('T')[1].substring(0, 5);
             } else {
                 dateStr = log.recordTime.substring(0, 10);
+                timeStr = log.recordTime.substring(11, 16);
             }
         }
         if (!dateStr) return;
@@ -196,12 +220,15 @@ function calculateStatistics(medications, logs) {
         if (dateStr < weekStartStr || dateStr > todayStr) return;
         
         const status = log.intakeStatus;
+        const slot = getTimeSlot(timeStr);
+        
         if (status === "TAKEN") {
             weeklyTaken++;
         } else if (status === "LATE") {
             weeklyLate++;
         } else if (status === "SKIPPED") {
             weeklyMissed++;
+            timeSlotMissed[slot]++;
             const medName = log.medicationName || "알 수 없음";
             drugMissedCount[medName] = (drugMissedCount[medName] || 0) + 1;
         }
@@ -215,6 +242,7 @@ function calculateStatistics(medications, logs) {
         const schedules = med.schedulesWithLogs || [];
         schedules.forEach(schedule => {
             const intakeTime = schedule.intakeTime ? schedule.intakeTime.substring(0, 5) : "00:00";
+            const slot = getTimeSlot(intakeTime);
             
             // 시간이 지난 스케줄만 카운트
             if (intakeTime <= currentTimeStr) {
@@ -226,7 +254,6 @@ function calculateStatistics(medications, logs) {
                         todaySuccess++;
                     }
                     if (status === "LATE") {
-                        // 오늘의 지각도 추가
                         if (!logs.some(l => l.logId === schedule.logId)) {
                             weeklyLate++;
                         }
@@ -234,12 +261,14 @@ function calculateStatistics(medications, logs) {
                     if (status === "SKIPPED") {
                         if (!logs.some(l => l.logId === schedule.logId)) {
                             weeklyMissed++;
+                            timeSlotMissed[slot]++;
                             drugMissedCount[med.name] = (drugMissedCount[med.name] || 0) + 1;
                         }
                     }
                 } else {
                     // 기록이 없으면 미복용
                     weeklyMissed++;
+                    timeSlotMissed[slot]++;
                     drugMissedCount[med.name] = (drugMissedCount[med.name] || 0) + 1;
                 }
             }
@@ -263,6 +292,7 @@ function calculateStatistics(medications, logs) {
     console.log("[notice] 이번 주 복용:", weeklyTaken);
     console.log("[notice] 이번 주 지각:", weeklyLate);
     console.log("[notice] 이번 주 미복용:", weeklyMissed);
+    console.log("[notice] 시간대별 미복용:", timeSlotMissed);
     console.log("[notice] 오늘 복용률:", successRate + "%");
     console.log("[notice] 미복용 Top 3:", topDrugs);
 
@@ -275,7 +305,8 @@ function calculateStatistics(medications, logs) {
         monthly: {
             successRate: successRate
         },
-        topDrugs: topDrugs
+        topDrugs: topDrugs,
+        timeSlotMissed: timeSlotMissed
     };
 }
 
@@ -333,7 +364,36 @@ function getTopDrugsData(topDrugs) {
 }
 
 // ===================================================================
-// 5) Top 3 도넛 차트 렌더링
+// 5) 시간대별 누락 차트 렌더링
+// ===================================================================
+function renderTimeBarChart(timeSlotMissed, containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    container.innerHTML = "";
+
+    const slots = ["아침", "점심", "저녁", "취침전"];
+    const maxValue = Math.max(...slots.map(s => timeSlotMissed[s] || 0), 1);
+
+    slots.forEach((slot) => {
+        const value = timeSlotMissed[slot] || 0;
+        const widthPercent = (value / maxValue) * 100;
+
+        const html = `
+            <div class="time-chart-row">
+                <span class="time-chart-label">${slot}</span>
+                <div class="time-chart-bar-container">
+                    <div class="time-chart-bar" style="width: ${widthPercent}%"></div>
+                </div>
+                <span class="time-chart-count">${value}</span>
+            </div>
+        `;
+        container.insertAdjacentHTML("beforeend", html);
+    });
+}
+
+// ===================================================================
+// 6) Top 3 도넛 차트 렌더링
 // ===================================================================
 function renderTopDrugsDoughnut(topDrugs, containerId) {
     const container = document.getElementById(containerId);
@@ -361,7 +421,7 @@ function renderTopDrugsDoughnut(topDrugs, containerId) {
 }
 
 // ===================================================================
-// 6) 페이지 로드 실행
+// 7) 페이지 로드 실행
 // ===================================================================
 document.addEventListener("DOMContentLoaded", async () => {
     console.log("[notice] ===== 페이지 로드 시작 =====");
@@ -375,6 +435,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             weekly: { failureCount: 0, lateCount: 0 },
             monthly: { successRate: 100 }
         });
+        renderTimeBarChart({ "아침": 0, "점심": 0, "저녁": 0, "취침전": 0 }, "time-bar-chart");
         renderTopDrugsDoughnut(getTopDrugsData([]), "drug-doughnut-chart");
         return;
     }
@@ -389,7 +450,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     // 4. 카드 업데이트
     updateSummaryCards(stats);
 
-    // 5. Top 3 도넛 차트 렌더링
+    // 5. 시간대별 누락 차트 렌더링
+    renderTimeBarChart(stats.timeSlotMissed, "time-bar-chart");
+
+    // 6. Top 3 도넛 차트 렌더링
     renderTopDrugsDoughnut(getTopDrugsData(stats.topDrugs), "drug-doughnut-chart");
 
     console.log("[notice] ===== 렌더링 완료 =====");
