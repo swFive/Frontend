@@ -134,6 +134,64 @@ async function fetchMedications() {
 }
 
 /**
+ * 캘린더 API를 통해 주간 복용 기록을 가져옴
+ * GET /api/calendar?year={year}&month={month}
+ * @param {Date} anchorDate - 기준 날짜
+ * @returns {Object} { "2025-11-28": [...], ... }
+ */
+async function fetchCalendarLogs(anchorDate) {
+  const calendarData = {};
+  
+  if (!window.MediAPI) {
+    console.log("[Weekly] MediAPI not available");
+    return calendarData;
+  }
+  
+  try {
+    const year = anchorDate.getFullYear();
+    const month = anchorDate.getMonth() + 1;
+    
+    console.log(`[Weekly] Fetching calendar for ${year}-${month}`);
+    const response = await MediAPI.getCalendar(year, month);
+    console.log("[Weekly] Calendar response:", response);
+    
+    if (response && typeof response === 'object') {
+      Object.assign(calendarData, response);
+    }
+    
+    // 주간이 월 경계를 넘는 경우 다음/이전 달도 조회
+    const weekDates = getWeekDates(anchorDate);
+    const firstDate = weekDates[0];
+    const lastDate = weekDates[6];
+    
+    if (firstDate.getMonth() !== anchorDate.getMonth()) {
+      const prevMonth = firstDate.getMonth() + 1;
+      const prevYear = firstDate.getFullYear();
+      console.log(`[Weekly] Fetching previous month calendar: ${prevYear}-${prevMonth}`);
+      const prevResponse = await MediAPI.getCalendar(prevYear, prevMonth);
+      if (prevResponse && typeof prevResponse === 'object') {
+        Object.assign(calendarData, prevResponse);
+      }
+    }
+    
+    if (lastDate.getMonth() !== anchorDate.getMonth()) {
+      const nextMonth = lastDate.getMonth() + 1;
+      const nextYear = lastDate.getFullYear();
+      console.log(`[Weekly] Fetching next month calendar: ${nextYear}-${nextMonth}`);
+      const nextResponse = await MediAPI.getCalendar(nextYear, nextMonth);
+      if (nextResponse && typeof nextResponse === 'object') {
+        Object.assign(calendarData, nextResponse);
+      }
+    }
+  } catch (e) {
+    console.error("[Weekly] Failed to fetch calendar:", e);
+  }
+  
+  console.log("[Weekly] Final calendar data:", calendarData);
+  return calendarData;
+}
+
+/**
  * 캘린더 데이터 조회 (API)
  * @param {number} year
  * @param {number} month
@@ -242,78 +300,61 @@ async function deleteIntakeRecord(logId) {
 // ==================================================
 
 /**
- * 약 목록에서 스케줄 정보 및 로그 추출하여 주간 데이터 생성
- * API 데이터 + 로컬 저장소 데이터 병합
+ * 캘린더 데이터를 사용하여 주간 데이터 생성
  * @param {Date} anchorDate
  * @param {Array} medications
+ * @param {Object} calendarData - 캘린더 API 응답 { "2025-11-28": [...], ... }
  */
-function buildWeeklyDataFromAPI(anchorDate, medications) {
+function buildWeeklyDataFromAPI(anchorDate, medications, calendarData = {}) {
   const dataset = createEmptyWeeklyData();
   const dates = getWeekDates(anchorDate);
   const missAggregator = {};
   const localHistory = loadHistory();
+  
+  console.log("[Weekly] buildWeeklyDataFromAPI - calendarData:", calendarData);
 
   dates.forEach((date, idx) => {
     const key = DAY_KEYS[idx];
     const dayStr = window.MediCommon.formatDate(date);
-    const dayOfWeek = ["일", "월", "화", "수", "목", "금", "토"][date.getDay()];
     
     const summary = { success: 0, miss: 0, late: 0 };
     const historyItems = [];
 
-    // 1. API 데이터: 각 약의 스케줄과 로그 확인
-    medications.forEach((med) => {
-      const schedules = med.schedulesWithLogs || [];
+    // 1. 캘린더 API 데이터: 해당 날짜의 복용 기록
+    const dayLogs = calendarData[dayStr] || [];
+    console.log(`[Weekly] ${dayStr}: dayLogs =`, dayLogs);
+    
+    dayLogs.forEach(log => {
+      const apiStatus = log.status || log.intakeStatus;
+      const status = STATUS_MAP_FROM_API[apiStatus] || "success";
       
-      schedules.forEach((schedule) => {
-        // 스케줄 날짜 범위 확인
-        const startDate = schedule.startDate ? new Date(schedule.startDate) : null;
-        const endDate = schedule.endDate ? new Date(schedule.endDate) : null;
-        
-        if (startDate && date < startDate) return;
-        if (endDate && date > endDate) return;
-        
-        // 요일 매칭 확인
-        const frequency = schedule.frequency || "매일";
-        if (frequency !== "매일" && !frequency.includes(dayOfWeek)) return;
-        
-        // 해당 날짜의 로그 확인
-        const recordTime = schedule.recordTime;
-        let logDate = null;
-        
-        if (recordTime) {
-          // recordTime이 ISO 형식일 경우 날짜 추출
-          if (recordTime.includes("T")) {
-            logDate = recordTime.split("T")[0];
-          } else {
-            // 시간만 있는 경우, 오늘 날짜와 비교 필요
-            logDate = dayStr;
-          }
-        }
-        
-        // 로그가 해당 날짜에 있는 경우
-        if (schedule.logId && logDate === dayStr) {
-          const apiStatus = schedule.intakeStatus;
-          const status = STATUS_MAP_FROM_API[apiStatus] || "success";
-          
-          summary[status] = (summary[status] || 0) + 1;
-          
-          if (status === "miss") {
-            missAggregator[med.name] = (missAggregator[med.name] || 0) + 1;
-          }
-          
-          historyItems.push({
-            logId: schedule.logId,
-            scheduleId: schedule.scheduleId,
-            medicationId: med.medicationId,
-            time: schedule.intakeTime ? schedule.intakeTime.substring(0, 5) : "--:--",
-            name: med.name,
-            status,
-            condition: "",
-            memo: med.memo || "",
-            source: "api"
-          });
-        }
+      // SKIPPED는 표시하지 않음
+      if (apiStatus === "SKIPPED") return;
+      
+      summary[status] = (summary[status] || 0) + 1;
+      
+      const medName = log.medicationName || log.name || "알 수 없음";
+      
+      if (status === "miss") {
+        missAggregator[medName] = (missAggregator[medName] || 0) + 1;
+      }
+      
+      // 복용 시간 추출
+      let intakeTime = "--:--";
+      if (log.intakeTime) {
+        intakeTime = log.intakeTime.substring(0, 5);
+      }
+      
+      historyItems.push({
+        logId: log.logId,
+        scheduleId: log.scheduleId,
+        medicationId: log.medicationId,
+        time: intakeTime,
+        name: medName,
+        status,
+        condition: "",
+        memo: "",
+        source: "api"
       });
     });
 
@@ -429,9 +470,12 @@ async function initWeeklyPage() {
   showLoading(true);
   await fetchMedications();
   
+  // 캘린더 API로 복용 기록 가져오기
+  const calendarData = await fetchCalendarLogs(currentWeekAnchor);
+  
   // 주간 데이터 빌드
   if (medicationsCache.length > 0) {
-    weeklyData = buildWeeklyDataFromAPI(currentWeekAnchor, medicationsCache);
+    weeklyData = buildWeeklyDataFromAPI(currentWeekAnchor, medicationsCache, calendarData);
   } else {
     weeklyData = buildWeeklyDataFromLocal(currentWeekAnchor);
   }
@@ -680,8 +724,11 @@ async function refreshWeeklyDataset() {
   
   await fetchMedications();
   
+  // 캘린더 API로 복용 기록 가져오기
+  const calendarData = await fetchCalendarLogs(currentWeekAnchor);
+  
   if (medicationsCache.length > 0) {
-    weeklyData = buildWeeklyDataFromAPI(currentWeekAnchor, medicationsCache);
+    weeklyData = buildWeeklyDataFromAPI(currentWeekAnchor, medicationsCache, calendarData);
   } else {
     weeklyData = buildWeeklyDataFromLocal(currentWeekAnchor);
   }
@@ -735,6 +782,11 @@ async function initManualUi() {
       manualRefs.applyGroupBtn.disabled = !manualRefs.groupSelect.value;
     }
   });
+  
+  // 날짜 입력 필드 변경 시 해당 날짜의 복용 약 목록 다시 렌더링
+  manualRefs.dateInput?.addEventListener("change", async () => {
+    await renderManualDrugList();
+  });
 
   document.querySelectorAll(".condition-emoji-btn").forEach((btn) => {
     btn.addEventListener("click", () => setCondition(btn));
@@ -780,37 +832,82 @@ function isMedicationCompleted(med) {
 }
 
 /**
- * 약 목록 렌더링 (복용 완료된 약만 표시)
+ * 선택된 날짜의 요일이 약의 복용 요일에 포함되는지 확인
+ */
+function isScheduledForDate(frequency, targetDate) {
+  const dayMap = { "일": 0, "월": 1, "화": 2, "수": 3, "목": 4, "금": 5, "토": 6 };
+  const reverseDayMap = ["일", "월", "화", "수", "목", "금", "토"];
+  
+  const date = new Date(targetDate);
+  const dayOfWeek = date.getDay(); // 0 = 일요일
+  const targetDayKor = reverseDayMap[dayOfWeek];
+  
+  // frequency가 "매일"이면 모든 요일 해당
+  if (frequency === "매일" || frequency === "월,화,수,목,금,토,일") {
+    return true;
+  }
+  
+  // frequency에서 요일 체크 (예: "월,수,금")
+  const days = frequency.split(",").map(d => d.trim());
+  return days.includes(targetDayKor);
+}
+
+/**
+ * 약 목록 렌더링 (선택된 날짜에 복용해야 하고 + 복용 완료한 약만 표시)
  */
 async function renderManualDrugList() {
   const container = manualRefs.drugList;
   if (!container) return;
   container.innerHTML = "";
   
-  // API에서 약 목록 가져오기
-  let medications = medicationsCache;
-  if (!medications.length) {
-    medications = await fetchMedications();
+  // 선택된 날짜 가져오기
+  const targetDate = manualRefs.dateInput?.value || selectedDateStr;
+  
+  // 캘린더 API로 해당 날짜의 복용 기록 가져오기
+  let calendarData = {};
+  try {
+    const date = new Date(targetDate);
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1;
+    
+    if (window.MediAPI) {
+      calendarData = await MediAPI.getCalendar(year, month) || {};
+    }
+  } catch (e) {
+    console.error("[Weekly] Failed to fetch calendar for drug list:", e);
   }
-
-  // 복용 완료된 약만 필터링
-  const completedMedications = medications.filter(isMedicationCompleted);
-
-  if (!medications.length) {
-    const empty = document.createElement("p");
-    empty.textContent = "등록된 약이 없습니다. Medication 페이지에서 추가해주세요.";
-    empty.style.fontSize = "13px";
-    empty.style.color = "#777";
-    container.appendChild(empty);
-    manualRefs.saveGroupBtn?.setAttribute("disabled", "true");
-    manualRefs.applyGroupBtn?.setAttribute("disabled", "true");
-    manualRefs.groupSelect?.setAttribute("disabled", "true");
-    return;
-  }
+  
+  // 해당 날짜의 복용 기록
+  const dayLogs = calendarData[targetDate] || [];
+  console.log(`[Weekly] renderManualDrugList - ${targetDate}:`, dayLogs);
+  
+  // 복용 완료한 기록만 필터링 (TAKEN, LATE)
+  const completedLogs = dayLogs.filter(log => {
+    const status = log.status || log.intakeStatus;
+    return status === "TAKEN" || status === "LATE";
+  });
+  
+  // 약 이름별로 그룹화
+  const completedMedications = [];
+  const seenMeds = new Set();
+  
+  completedLogs.forEach(log => {
+    const medName = log.medicationName || log.name;
+    if (!seenMeds.has(medName)) {
+      seenMeds.add(medName);
+      completedMedications.push({
+        name: medName,
+        medicationId: log.medicationId,
+        scheduleId: log.scheduleId,
+        logId: log.logId,
+        category: log.category || ""
+      });
+    }
+  });
 
   if (!completedMedications.length) {
     const empty = document.createElement("p");
-    empty.textContent = "복용 완료된 약이 없습니다. Medication 페이지에서 복용 처리 후 이용해주세요.";
+    empty.textContent = `${targetDate}에 복용한 약이 없습니다.`;
     empty.style.fontSize = "13px";
     empty.style.color = "#777";
     container.appendChild(empty);
@@ -834,12 +931,12 @@ async function renderManualDrugList() {
     checkbox.value = med.name;
     checkbox.dataset.medicationId = med.medicationId;
     
-    // 스케줄 정보 저장 (복용 완료된 스케줄의 logId 사용)
-    const schedules = med.schedulesWithLogs || [];
-    const completedSchedule = schedules.find((s) => s.logId && (s.intakeStatus === "TAKEN" || s.intakeStatus === "LATE"));
-    if (completedSchedule) {
-      checkbox.dataset.scheduleId = completedSchedule.scheduleId;
-      checkbox.dataset.logId = completedSchedule.logId;
+    // 복용 기록 정보
+    if (med.scheduleId) {
+      checkbox.dataset.scheduleId = med.scheduleId;
+    }
+    if (med.logId) {
+      checkbox.dataset.logId = med.logId;
     }
     
     const text = document.createElement("span");
@@ -1017,10 +1114,12 @@ function handleGroupApply() {
   });
 }
 
-function syncManualDate(dateStr) {
+async function syncManualDate(dateStr) {
   if (manualRefs.dateInput) {
     manualRefs.dateInput.value = dateStr;
   }
+  // 날짜가 변경되면 해당 날짜에 복용한 약 목록도 다시 렌더링
+  await renderManualDrugList();
 }
 
 /**
