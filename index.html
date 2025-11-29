@@ -117,7 +117,6 @@
                 <p class="hero__description">총 복용해야 할 약 개수부터 복용 완료 여부까지, 하루 일정을 카드 하나에 담았습니다. 다음 복용 시간도 놓치지 않도록 알려드릴게요.</p>
                 <div class="hero__ctas">
                     <button class="hero__cta hero__cta--primary" type="button">오늘의 일정 확인</button>
-                    <button id="openAddModalBtn" class="hero__cta hero__cta--ghost" type="button">복용 등록</button>
                 </div>
                 <figure class="hero__image">
                     <img src="./asset/img/1.png" alt="MediCheck 일러스트" loading="lazy">
@@ -130,7 +129,7 @@
                 <div class="hero-progress" aria-label="이번주 복용률">
                     <div class="hero-progress__top">
                         <span>오늘의 복용률</span>
-                        <button class="hero-progress__link" type="button" onclick="location.href='./weekly.html'">주간 확인하기</button>
+                        <button class="hero-progress__link" type="button" onclick="location.href='./notice.html'">통계 확인하기</button>
                     </div>
                     <div class="hero-progress__bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
                         <span style="width: 0%"></span>
@@ -188,8 +187,8 @@
                     </div>
                 </div>
                 <div class="summary-card__next">
-                    <span>다음 복용 예정</span>
-                    <p>로딩 중...</p>
+                    <span class="summary-card__next-title">복용 목록</span>
+                    <div class="summary-card__meds-list"></div>
                 </div>
             </article>
         </section>
@@ -274,7 +273,6 @@
 
     // 요소 선택
     const modal = document.getElementById('addMedicineModal');
-    const openBtn = document.getElementById('openAddModalBtn');
     const openCard = document.getElementById('openAddModalCard');
     const closeBtn = document.getElementById('closeModalBtn');
     const form = document.getElementById('medicineForm');
@@ -299,7 +297,6 @@
     }
 
     // 이벤트 리스너 연결 (null 체크 포함)
-    if(openBtn) openBtn.addEventListener('click', openModal);
     if(openCard) openCard.addEventListener('click', openModal);
     if(closeBtn) closeBtn.addEventListener('click', closeModal);
 

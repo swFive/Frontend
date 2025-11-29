@@ -571,13 +571,64 @@ body{
     padding: 16px 20px;
 }
 
-.summary-card__next span{
+.summary-card__next-title{
     display: block;
     font-weight: 600;
+    margin-bottom: 12px;
 }
 
-.summary-card__next p{
-    margin: 6px 0 0;
+.summary-card__meds-list{
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.summary-meds__row{
+    display: grid;
+    grid-template-columns: 1.3fr 0.9fr 0.7fr auto;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    background: rgba(255, 255, 255, 0.7);
+    border-radius: 12px;
+}
+
+.summary-meds__row > span{
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.summary-meds__name{
+    color: #252B61;
+}
+
+.summary-meds__time{
+    color: #5F647E;
+}
+
+.summary-meds__dose{
+    color: #5F647E;
+}
+
+.summary-meds__status{
+    min-width: 90px;
+    text-align: center;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.summary-meds__status.is-done{
+    background: #86ED8A;
+    color: #252B61;
+}
+
+.summary-meds__status.is-missed{
+    background: #FFAAAA;
+    color: #252B61;
 }
 
 .category-card{
