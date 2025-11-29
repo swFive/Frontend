@@ -313,12 +313,6 @@ body{
     font-weight: 600;
 }
 
-.dashboard__divider{
-    height: 1px;
-    width: 100%;
-    background: rgba(0, 0, 0, 0.15);
-}
-
 .dashboard__calendar-row{
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
@@ -584,12 +578,6 @@ body{
 
 .summary-card__next p{
     margin: 6px 0 0;
-}
-
-.dashboard__category-grid{
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 18px;
 }
 
 .category-card{

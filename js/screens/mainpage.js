@@ -68,38 +68,97 @@ async function fetchMainpageMedications() {
 }
 
 // ------------------------------
-// 약 데이터를 UI용 형식으로 변환
+// 약 데이터를 UI용 형식으로 변환 (오늘 복용할 약만 필터링)
 // ------------------------------
 function transformMedicationData(medications) {
-    return medications.map(item => {
-        const schedules = item.schedulesWithLogs || [];
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0]; // YYYY-MM-DD
+    const todayDayIndex = today.getDay(); // 0(일) ~ 6(토)
+    const dayNames = ["일", "월", "화", "수", "목", "금", "토"];
+    const todayDay = dayNames[todayDayIndex];
+    
+    // 오늘 요일에 해당하는지 확인하는 함수
+    const isTodaySchedule = (frequency) => {
+        if (!frequency) return true;
+        if (frequency === "매일" || frequency === "DAILY") return true;
+        // "월,화,수,목,금,토,일" 또는 "월, 화, 수" 형태 처리
+        const cleanFreq = frequency.replace(/\s/g, "");
+        return cleanFreq.includes(todayDay);
+    };
+    
+    // 날짜가 기간 내인지 확인하는 함수
+    const isWithinDateRange = (startDate, endDate) => {
+        // 시작일/종료일이 없으면 항상 표시
+        if (!startDate && !endDate) return true;
         
-        // 시간 목록 추출
-        let times = schedules
-            .map(s => s.intakeTime ? s.intakeTime.substring(0, 5) : "")
-            .filter(t => t);
-        times = [...new Set(times)];
-        
-        // 복용 현황 계산
-        let takenCount = 0;
-        for (const s of schedules) {
-            if (s.logId && (s.intakeStatus === 'TAKEN' || s.intakeStatus === 'LATE')) {
-                takenCount++;
-            }
+        // 시작일만 있는 경우
+        if (startDate && !endDate) {
+            return todayStr >= startDate;
         }
         
-        return {
-            title: item.name,
-            subtitle: item.category || "기타",
-            time: times.length > 0 ? times : ["--:--"],
-            dose: `${item.doseUnitQuantity || 1}정`,
-            doseCount: item.doseUnitQuantity || 1,
-            dailyTimes: times.length || 1,
-            takenCountToday: takenCount,
-            nextIntakeTime: item.nextIntakeTime || "-",
-            memo: item.memo || ""
-        };
-    });
+        // 종료일만 있는 경우
+        if (!startDate && endDate) {
+            return todayStr <= endDate;
+        }
+        
+        // 둘 다 있는 경우
+        return todayStr >= startDate && todayStr <= endDate;
+    };
+    
+    return medications
+        .filter(item => {
+            const schedules = item.schedulesWithLogs || [];
+            
+            // 스케줄이 없으면 제외
+            if (schedules.length === 0) return false;
+            
+            // 오늘 날짜에 해당하는 스케줄이 하나라도 있는지 확인
+            return schedules.some(schedule => {
+                const frequency = schedule.frequency || "";
+                const startDate = schedule.startDate;
+                const endDate = schedule.endDate;
+                
+                return isTodaySchedule(frequency) && isWithinDateRange(startDate, endDate);
+            });
+        })
+        .map(item => {
+            const schedules = item.schedulesWithLogs || [];
+            
+            // 오늘 날짜에 해당하는 스케줄만 필터링
+            const todaySchedules = schedules.filter(schedule => {
+                const frequency = schedule.frequency || "";
+                const startDate = schedule.startDate;
+                const endDate = schedule.endDate;
+                
+                return isTodaySchedule(frequency) && isWithinDateRange(startDate, endDate);
+            });
+            
+            // 시간 목록 추출 (오늘 스케줄만)
+            let times = todaySchedules
+                .map(s => s.intakeTime ? s.intakeTime.substring(0, 5) : "")
+                .filter(t => t);
+            times = [...new Set(times)];
+            
+            // 복용 현황 계산 (오늘 스케줄만)
+            let takenCount = 0;
+            for (const s of todaySchedules) {
+                if (s.logId && (s.intakeStatus === 'TAKEN' || s.intakeStatus === 'LATE')) {
+                    takenCount++;
+                }
+            }
+            
+            return {
+                title: item.name,
+                subtitle: item.category || "기타",
+                time: times.length > 0 ? times : ["--:--"],
+                dose: `${item.doseUnitQuantity || 1}정`,
+                doseCount: item.doseUnitQuantity || 1,
+                dailyTimes: times.length || 1,
+                takenCountToday: takenCount,
+                nextIntakeTime: item.nextIntakeTime || "-",
+                memo: item.memo || ""
+            };
+        });
 }
 
 // ------------------------------
@@ -232,69 +291,6 @@ function updateSummaryCard(allMeds) {
     if (completedDoseElement) completedDoseElement.innerText = `${completedCount}회`;
     if (remainingDoseElement) remainingDoseElement.innerText = `${remainingCount}회`;
     if (nextDoseElement) nextDoseElement.innerText = nextDoseText;
-}
-
-// ------------------------------
-// 카테고리별로 약물 그룹화하여 렌더링
-// ------------------------------
-function renderTodayMedicationCategories(allMeds) {
-    const categoryGrid = document.querySelector(".dashboard__category-grid");
-    if (!categoryGrid) return;
-
-    // subtitle 필드를 카테고리로 간주하여 그룹화
-    const groupedMeds = allMeds.reduce((acc, med) => {
-        const category = med.subtitle || "기타";
-        if (!acc[category]) {
-            acc[category] = [];
-        }
-
-        const statusText = ` (${parseInt(med.takenCountToday, 10) || 0}/${parseInt(med.dailyTimes, 10) || 1} 완료)`;
-        acc[category].push(med.title + statusText);
-        return acc;
-    }, {});
-
-    categoryGrid.innerHTML = '';
-
-    if (Object.keys(groupedMeds).length === 0) {
-        const emptyCardHTML = `
-            <article class="category-card">
-                <p class="category-card__title">등록된 약 없음</p>
-                <ul>
-                    <li>Medication 페이지에서 약을 등록해주세요.</li>
-                </ul>
-            </article>
-        `;
-        categoryGrid.insertAdjacentHTML('beforeend', emptyCardHTML);
-    } else {
-        Object.keys(groupedMeds).forEach(category => {
-            const drugsList = groupedMeds[category];
-
-            const cardHTML = `
-                <article class="category-card">
-                    <p class="category-card__title">${escapeHtml(category)}</p>
-                    <ul>
-                        ${drugsList.map(drug => `<li>${escapeHtml(drug)}</li>`).join("")}
-                    </ul>
-                    <button class="category-card__cta" type="button" aria-label="${escapeHtml(category)} 상세 보기">&gt;</button>
-                </article>
-            `;
-            categoryGrid.insertAdjacentHTML('beforeend', cardHTML);
-        });
-    }
-
-    // 카테고리 추가 버튼
-    const addCardHTML = `
-        <article id="openAddModalCard" class="category-card category-card--add">
-            <button type="button" aria-label="새 약 카테고리 추가">+</button>
-        </article>
-    `;
-    categoryGrid.insertAdjacentHTML('beforeend', addCardHTML);
-    
-    // 추가 버튼 이벤트 재연결
-    const openCard = document.getElementById('openAddModalCard');
-    if (openCard && typeof openModal === 'function') {
-        openCard.addEventListener('click', openModal);
-    }
 }
 
 // ------------------------------
@@ -788,7 +784,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     // UI 렌더링
     renderTodayMeds(transformedMeds);
     updateSummaryCard(transformedMeds);
-    renderTodayMedicationCategories(transformedMeds);
     
     // 이번주 복용률 업데이트
     await updateWeeklyProgress(transformedMeds);
