@@ -816,7 +816,11 @@ function updateSummaryForDate(dateStr) {
                         name: medName,
                         time: intakeTime,
                         dose: dose,
-                        isDone: isDone
+                        isDone: isDone,
+                        logId: log.logId || log.id,
+                        scheduleId: log.scheduleId,
+                        status: status,
+                        recordTime: log.recordTime || log.intakeTime
                     });
                 });
             }
@@ -827,12 +831,16 @@ function updateSummaryForDate(dateStr) {
             if (medsList.length === 0) {
                 medsListEl.innerHTML = '<p style="text-align: center; color: #999; margin: 10px 0; padding: 20px;">해당 날짜에 복용 기록이 없습니다.</p>';
             } else {
-                const medsHTML = medsList.map(item => {
+                const medsHTML = medsList.map((item, index) => {
                     const statusText = item.isDone ? "복용 완료" : "미복용";
                     const statusClass = item.isDone ? 'is-done' : 'is-missed';
+                    // 이 기능은 현재 API 응답 구조상 작동하지 않음
+                    // Calendar API 응답에 scheduleId가 포함되지 않아 새로운 로그를 생성할 수 없음
+                    const clickable = ''; // 비활성화
+                    const dataAttrs = '';
                     
                     return `
-                        <div class="summary-meds__row">
+                        <div class="summary-meds__row ${clickable}" ${dataAttrs}>
                             <span class="summary-meds__name">${escapeHtml(item.name)}</span>
                             <span class="summary-meds__time">${escapeHtml(item.time)}</span>
                             <span class="summary-meds__dose">${escapeHtml(item.dose)}</span>
@@ -842,6 +850,123 @@ function updateSummaryForDate(dateStr) {
                 }).join("");
                 
                 medsListEl.innerHTML = medsHTML;
+                
+                // 기능 비활성화: Calendar API 응답에 scheduleId가 포함되지 않아
+                // 과거 날짜의 미복용 약을 복용으로 변경하는 기능을 사용할 수 없음
+                // 이 기능을 사용하려면 API 응답에 scheduleId 필드가 필요함
+                /*
+                if (!isToday) {
+                    medsListEl.querySelectorAll('.summary-meds__row.clickable').forEach(row => {
+                        row.style.cursor = 'pointer';
+                        row.addEventListener('click', async () => {
+                            const logId = row.dataset.logId;
+                            const scheduleId = row.dataset.scheduleId;
+                            const recordTime = row.dataset.recordTime;
+                            
+                            // scheduleId 유효성 검사
+                            if (!scheduleId || scheduleId === '' || isNaN(parseInt(scheduleId))) {
+                                console.warn('유효한 scheduleId가 없습니다:', scheduleId);
+                                if (window.showToast) {
+                                    window.showToast('약 정보를 찾을 수 없습니다.', { type: 'error' });
+                                }
+                                return;
+                            }
+                            
+                            // recordTime을 ISO 8601 형식으로 변환
+                            let formattedRecordTime = null;
+                            if (recordTime && recordTime !== '') {
+                                // 이미 ISO 형식인지 확인
+                                if (recordTime.includes('T') && recordTime.includes(':')) {
+                                    formattedRecordTime = recordTime;
+                                } else {
+                                    // 날짜와 시간을 조합하여 ISO 형식으로 변환
+                                    const timeStr = row.querySelector('.summary-meds__time').textContent.trim();
+                                    if (timeStr && timeStr !== '--:--') {
+                                        // dateStr: YYYY-MM-DD, timeStr: HH:mm
+                                        const dateTime = new Date(`${dateStr}T${timeStr}:00`);
+                                        const offset = dateTime.getTimezoneOffset();
+                                        const offsetHours = Math.abs(Math.floor(offset / 60));
+                                        const offsetMinutes = Math.abs(offset % 60);
+                                        const offsetSign = offset <= 0 ? '+' : '-';
+                                        formattedRecordTime = `${dateStr}T${timeStr}:00${offsetSign}${String(offsetHours).padStart(2, '0')}:${String(offsetMinutes).padStart(2, '0')}`;
+                                    }
+                                }
+                            } else {
+                                // recordTime이 없으면 현재 날짜와 시간 사용
+                                const timeStr = row.querySelector('.summary-meds__time').textContent.trim();
+                                if (timeStr && timeStr !== '--:--') {
+                                    const dateTime = new Date(`${dateStr}T${timeStr}:00`);
+                                    const offset = dateTime.getTimezoneOffset();
+                                    const offsetHours = Math.abs(Math.floor(offset / 60));
+                                    const offsetMinutes = Math.abs(offset % 60);
+                                    const offsetSign = offset <= 0 ? '+' : '-';
+                                    formattedRecordTime = `${dateStr}T${timeStr}:00${offsetSign}${String(offsetHours).padStart(2, '0')}:${String(offsetMinutes).padStart(2, '0')}`;
+                                }
+                            }
+                            
+                            // 로딩 상태 표시
+                            const statusEl = row.querySelector('.summary-meds__status');
+                            const originalText = statusEl.textContent;
+                            statusEl.textContent = '처리 중...';
+                            row.style.pointerEvents = 'none';
+                            
+                            try {
+                                // 기존 로그가 있으면 삭제
+                                if (logId && logId !== '' && !isNaN(parseInt(logId)) && window.MediAPI) {
+                                    await window.MediAPI.deleteIntakeLog(parseInt(logId));
+                                }
+                                
+                                // 새로운 TAKEN 로그 생성
+                                if (window.MediAPI) {
+                                    const scheduleIdNum = parseInt(scheduleId);
+                                    if (isNaN(scheduleIdNum)) {
+                                        throw new Error('유효하지 않은 scheduleId입니다.');
+                                    }
+                                    
+                                    const newLog = await window.MediAPI.createIntakeLog(
+                                        scheduleIdNum,
+                                        'TAKEN',
+                                        formattedRecordTime
+                                    );
+                                    
+                                    if (newLog) {
+                                        // UI 업데이트
+                                        statusEl.textContent = '복용 완료';
+                                        statusEl.classList.remove('is-missed');
+                                        statusEl.classList.add('is-done');
+                                        row.classList.remove('clickable');
+                                        row.style.cursor = 'default';
+                                        
+                                        // 캘린더 데이터 새로고침
+                                        const [year, month, day] = dateStr.split('-').map(Number);
+                                        await fetchCalendarData(year, month);
+                                        
+                                        // 요약 카드 다시 렌더링
+                                        selectCalendarDate(dateStr);
+                                        
+                                        // 토스트 메시지
+                                        if (window.showToast) {
+                                            window.showToast('복용 완료로 변경되었습니다.', { type: 'success' });
+                                        }
+                                    } else {
+                                        throw new Error('로그 생성 실패');
+                                    }
+                                } else {
+                                    throw new Error('MediAPI를 사용할 수 없습니다.');
+                                }
+                            } catch (error) {
+                                console.error('복용 상태 변경 실패:', error);
+                                statusEl.textContent = originalText;
+                                row.style.pointerEvents = 'auto';
+                                
+                                if (window.showToast) {
+                                    window.showToast('복용 상태 변경에 실패했습니다.', { type: 'error' });
+                                }
+                            }
+                        });
+                    });
+                }
+                */
             }
         }
     }

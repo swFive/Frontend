@@ -124,18 +124,29 @@ async function fetchAllLogs(medications) {
     
     // 이번 달 캘린더 데이터 가져오기
     const calendarData = await fetchCalendarLogs(year, month);
-    console.log("[notice] 캘린더 데이터:", calendarData);
+    console.log("[notice] 이번 달 캘린더 데이터:", calendarData);
+    
+    // 이전 달도 가져오기 (주가 월 경계를 넘을 수 있음)
+    const prevMonth = month === 1 ? 12 : month - 1;
+    const prevYear = month === 1 ? year - 1 : year;
+    const prevCalendarData = await fetchCalendarLogs(prevYear, prevMonth);
+    console.log("[notice] 이전 달 캘린더 데이터:", prevCalendarData);
+    
+    // 두 달 데이터 병합
+    const allCalendarData = { ...prevCalendarData, ...calendarData };
     
     // 날짜별 복용 기록을 배열로 변환
-    Object.entries(calendarData).forEach(([dateStr, dayLogs]) => {
+    Object.entries(allCalendarData).forEach(([dateStr, dayLogs]) => {
         if (Array.isArray(dayLogs)) {
             dayLogs.forEach(log => {
-                console.log("[notice] 원본 로그:", dateStr, log);
                 const status = log.status || log.intakeStatus || log.logStatus;
                 allLogs.push({
                     ...log,
                     medicationName: log.medicationName || log.name || log.medicineName,
-                    recordTime: `${dateStr}T${log.intakeTime || "00:00:00"}`,
+                    medicationId: log.medicationId || log.medId || log.medicineId,
+                    scheduleId: log.scheduleId || log.schedule_id,
+                    recordTime: log.recordTime || `${dateStr}T${log.intakeTime || "00:00:00"}`,
+                    intakeTime: log.intakeTime || log.intake_time,
                     intakeStatus: status
                 });
             });
@@ -143,7 +154,7 @@ async function fetchAllLogs(medications) {
     });
     
     console.log("[notice] 전체 복용 기록:", allLogs.length, "개");
-    console.log("[notice] 복용 기록 샘플:", allLogs.slice(0, 3));
+    console.log("[notice] 복용 기록 샘플:", allLogs.slice(0, 5));
     return allLogs;
 }
 
@@ -187,7 +198,7 @@ function calculateStatistics(medications, logs) {
     const dayNames = ["일", "월", "화", "수", "목", "금", "토"];
     const dayKorToNum = { "일": 0, "월": 1, "화": 2, "수": 3, "목": 4, "금": 5, "토": 6 };
     
-    // 복용 기록을 날짜+스케줄ID로 정리 (빠른 조회용)
+    // 복용 기록을 날짜+약이름+시간으로 정리 (빠른 조회용)
     const logMap = {};
     logs.forEach(log => {
         let dateStr = null;
@@ -195,14 +206,37 @@ function calculateStatistics(medications, logs) {
             dateStr = log.recordTime.includes('T') 
                 ? log.recordTime.split('T')[0] 
                 : log.recordTime.substring(0, 10);
+        } else if (log.date) {
+            dateStr = log.date;
         }
         if (!dateStr) return;
         
-        const key = `${dateStr}_${log.scheduleId || log.medicationId}_${log.intakeTime || ""}`;
-        logMap[key] = log;
+        // intakeTime 정규화 (HH:mm 형식으로)
+        let timeStr = "";
+        if (log.intakeTime) {
+            timeStr = log.intakeTime.substring(0, 5); // HH:mm만 추출
+        }
+        
+        const medName = log.medicationName || log.name || log.medicineName || "";
+        const scheduleId = log.scheduleId || "";
+        const medicationId = log.medicationId || log.medId || "";
+        
+        // 여러 키로 매핑 (유연한 검색을 위해)
+        const keys = [
+            `${dateStr}_${scheduleId}_${timeStr}`,
+            `${dateStr}_${medicationId}_${timeStr}`,
+            `${dateStr}_${medName}_${timeStr}`
+        ];
+        
+        keys.forEach(key => {
+            if (key && !logMap[key]) {
+                logMap[key] = log;
+            }
+        });
     });
     
     console.log("[notice] 복용 기록 맵 키:", Object.keys(logMap).length, "개");
+    console.log("[notice] 로그 샘플:", logs.slice(0, 3));
     
     // 이번 주 통계 계산
     let weeklyTaken = 0;
@@ -249,7 +283,11 @@ function calculateStatistics(medications, logs) {
             
             // 이번 달 1일부터 오늘까지 순회
             const checkDate = new Date(monthStart);
-            while (checkDate <= today) {
+            // today의 시간을 23:59:59로 설정하여 오늘 날짜까지 포함
+            const todayEnd = new Date(today);
+            todayEnd.setHours(23, 59, 59, 999);
+            
+            while (checkDate <= todayEnd) {
                 const dateStr = checkDate.toISOString().split('T')[0];
                 const dayOfWeek = checkDate.getDay();
                 const dayName = dayNames[dayOfWeek];
@@ -260,12 +298,53 @@ function calculateStatistics(medications, logs) {
                     && dateStr <= endDate;
                 
                 if (shouldTake) {
-                    // 복용 기록 찾기
-                    const key1 = `${dateStr}_${scheduleId}_${intakeTime}`;
-                    const key2 = `${dateStr}_${med.medicationId || med.id}_${intakeTime}`;
-                    const log = logMap[key1] || logMap[key2];
+                    // 복용 기록 찾기 (여러 키로 시도)
+                    const timeOnly = intakeTime.substring(0, 5); // HH:mm 형식
+                    const key1 = `${dateStr}_${scheduleId}_${timeOnly}`;
+                    const key2 = `${dateStr}_${med.medicationId || med.id}_${timeOnly}`;
+                    const key3 = `${dateStr}_${medName}_${timeOnly}`;
                     
-                    const status = log?.intakeStatus || log?.status || null;
+                    let log = logMap[key1] || logMap[key2] || logMap[key3];
+                    
+                    // 약 이름과 시간으로도 찾기 (더 유연한 매칭)
+                    if (!log) {
+                        log = logs.find(l => {
+                            let logDate = null;
+                            if (l.recordTime) {
+                                logDate = l.recordTime.includes('T') 
+                                    ? l.recordTime.split('T')[0] 
+                                    : l.recordTime.substring(0, 10);
+                            } else if (l.date) {
+                                logDate = l.date;
+                            }
+                            const logTime = l.intakeTime ? l.intakeTime.substring(0, 5) : "";
+                            const logMedName = l.medicationName || l.name || l.medicineName || "";
+                            return logDate === dateStr && logTime === timeOnly && logMedName === medName;
+                        });
+                    }
+                    
+                    // 오늘 날짜인 경우 디버깅 로그
+                    if (dateStr === todayStr) {
+                        console.log(`[notice] 오늘 날짜 (${dateStr}) 로그 검색:`, {
+                            medName,
+                            timeOnly,
+                            scheduleId,
+                            medicationId: med.medicationId || med.id,
+                            found: !!log,
+                            logStatus: log ? (log.intakeStatus || log.status) : null
+                        });
+                    }
+                    
+                    // status 파싱 개선: 여러 필드명 확인
+                    let status = null;
+                    if (log) {
+                        status = log.intakeStatus || log.status || log.logStatus || null;
+                        // 대소문자 정규화
+                        if (status) {
+                            status = status.toUpperCase();
+                        }
+                    }
+                    
                     const slot = getTimeSlot(intakeTime);
                     
                     // 이번 달 통계
@@ -284,6 +363,7 @@ function calculateStatistics(medications, logs) {
                         } else if (status === "LATE") {
                             weeklyLate++;
                         } else {
+                            // status가 null이거나 다른 값이면 미복용으로 처리
                             weeklyMissed++;
                             timeSlotMissed[slot]++;
                             dayOfWeekMissed[dayName]++;
@@ -354,9 +434,33 @@ function updateSummaryCards(stats) {
     const weeklyLate = stats.weekly?.lateCount ?? 0;
     const monthlySuccess = stats.monthly?.successRate ?? 0;
 
-    if (missedEl) missedEl.textContent = `${weeklyFailure}회`;
-    if (lateEl) lateEl.textContent = `${weeklyLate}회`;
-    if (successEl) successEl.textContent = `${monthlySuccess}%`;
+    console.log("[notice] updateSummaryCards 호출:", {
+        weeklyFailure,
+        weeklyLate,
+        monthlySuccess,
+        stats
+    });
+
+    if (missedEl) {
+        missedEl.textContent = `${weeklyFailure}회`;
+        console.log("[notice] missedEl 업데이트:", missedEl.textContent);
+    } else {
+        console.warn("[notice] missedEl 요소를 찾을 수 없습니다.");
+    }
+    
+    if (lateEl) {
+        lateEl.textContent = `${weeklyLate}회`;
+        console.log("[notice] lateEl 업데이트:", lateEl.textContent);
+    } else {
+        console.warn("[notice] lateEl 요소를 찾을 수 없습니다.");
+    }
+    
+    if (successEl) {
+        successEl.textContent = `${monthlySuccess}%`;
+        console.log("[notice] successEl 업데이트:", successEl.textContent);
+    } else {
+        console.warn("[notice] successEl 요소를 찾을 수 없습니다.");
+    }
     
     // 비교 텍스트 업데이트
     if (missedChangeEl) {
