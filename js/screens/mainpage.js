@@ -447,6 +447,16 @@ function initCalendar() {
     
     if (nextBtn) {
         nextBtn.addEventListener('click', () => {
+            const today = new Date();
+            const nextMonth = new Date(currentCalendarDate);
+            nextMonth.setMonth(nextMonth.getMonth() + 1);
+            
+            // 오늘 이후의 달로는 이동하지 않도록 제한
+            if (nextMonth.getFullYear() > today.getFullYear() || 
+                (nextMonth.getFullYear() === today.getFullYear() && nextMonth.getMonth() > today.getMonth())) {
+                return; // 다음 달 버튼 클릭 무시
+            }
+            
             currentCalendarDate.setMonth(currentCalendarDate.getMonth() + 1);
             renderCalendar();
         });
@@ -461,6 +471,7 @@ function initCalendar() {
 async function renderCalendar() {
     const container = document.getElementById('calendarDays');
     const subtitle = document.getElementById('calendarSubtitle');
+    const nextBtn = document.getElementById('calendarNext');
     
     if (!container) return;
     
@@ -470,6 +481,25 @@ async function renderCalendar() {
     // 제목 업데이트
     if (subtitle) {
         subtitle.textContent = `${year}년 ${month + 1}월`;
+    }
+    
+    // 다음 달 버튼 비활성화 체크
+    if (nextBtn) {
+        const today = new Date();
+        const nextMonth = new Date(currentCalendarDate);
+        nextMonth.setMonth(nextMonth.getMonth() + 1);
+        
+        // 오늘 이후의 달로는 이동할 수 없으면 버튼 비활성화
+        const isNextMonthFuture = nextMonth.getFullYear() > today.getFullYear() || 
+            (nextMonth.getFullYear() === today.getFullYear() && nextMonth.getMonth() > today.getMonth());
+        
+        if (isNextMonthFuture) {
+            nextBtn.disabled = true;
+            nextBtn.classList.add('is-disabled');
+        } else {
+            nextBtn.disabled = false;
+            nextBtn.classList.remove('is-disabled');
+        }
     }
     
     // 캘린더 데이터 가져오기
@@ -496,10 +526,12 @@ async function renderCalendar() {
         const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         const isToday = dateStr === todayStr;
         const isSelected = selectedCalendarDate === dateStr;
+        const isFuture = dateStr > todayStr; // 미래 날짜 체크
         const dayData = calendarData[dateStr];
         
         let statusDot = '';
-        if (dayData) {
+        // 미래 날짜가 아니고 dayData가 있을 때만 상태 표시
+        if (!isFuture && dayData) {
             if (dayData.status === 'complete') {
                 statusDot = '<span class="status-dot complete"></span>';
             } else if (dayData.status === 'partial') {
@@ -512,14 +544,17 @@ async function renderCalendar() {
         const classes = [];
         if (isToday) classes.push('is-today');
         if (isSelected) classes.push('is-selected');
+        if (isFuture) classes.push('is-future'); // 미래 날짜 클래스 추가
         
-        html += `<button type="button" class="${classes.join(' ')}" data-date="${dateStr}">${day}${statusDot}</button>`;
+        // 미래 날짜는 disabled 속성 추가
+        const disabledAttr = isFuture ? ' disabled' : '';
+        html += `<button type="button" class="${classes.join(' ')}" data-date="${dateStr}"${disabledAttr}>${day}${statusDot}</button>`;
     }
     
     container.innerHTML = html;
     
-    // 날짜 클릭 이벤트
-    container.querySelectorAll('button[data-date]').forEach(btn => {
+    // 날짜 클릭 이벤트 (미래 날짜 제외)
+    container.querySelectorAll('button[data-date]:not(.is-future)').forEach(btn => {
         btn.addEventListener('click', () => {
             const date = btn.dataset.date;
             selectCalendarDate(date);
@@ -551,10 +586,20 @@ async function fetchCalendarData(year, month) {
         
         const data = await response.json();
         
+        // 오늘 날짜 (미래 날짜 필터링용)
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayStr = formatDateStr(today);
+        
         // API 응답을 calendarData 형식으로 변환
         // 응답이 객체 형태인 경우 (날짜를 키로 하는 형식: { "2025-11-28": [...], ... })
         if (data && typeof data === 'object' && !Array.isArray(data)) {
             Object.keys(data).forEach(dateStr => {
+                // 미래 날짜는 건너뛰기
+                if (dateStr > todayStr) {
+                    return;
+                }
+                
                 const dayLogs = data[dateStr] || [];
                 
                 // 각 로그의 상태 확인
@@ -596,6 +641,11 @@ async function fetchCalendarData(year, month) {
             data.forEach(item => {
                 const dateStr = item.date || item.recordDate;
                 if (dateStr) {
+                    // 미래 날짜는 건너뛰기
+                    if (dateStr > todayStr) {
+                        return;
+                    }
+                    
                     const total = item.totalCount || item.total || 0;
                     const taken = item.takenCount || item.taken || 0;
                     

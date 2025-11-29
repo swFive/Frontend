@@ -380,6 +380,15 @@ body{
     color: #252B61;
     cursor: pointer;
     font-size: 18px;
+    transition: opacity 0.2s;
+}
+
+.calendar-card__nav button.is-disabled,
+.calendar-card__nav button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background: #E5E5E5;
+    color: #999;
 }
 
 .calendar-weekdays,
@@ -425,6 +434,13 @@ body{
     opacity: 0;
     pointer-events: none;
     cursor: default;
+}
+
+.calendar-days button.is-future,
+.calendar-days button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    pointer-events: none;
 }
 
 /* 캘린더 날짜별 복용 상태 */
