@@ -311,32 +311,64 @@ function buildWeeklyDataFromAPI(anchorDate, medications, calendarData = {}) {
   const missAggregator = {};
   const localHistory = loadHistory();
   
+  // 오늘 날짜 (미래 날짜 필터링용)
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayStr = window.MediCommon.formatDate(today);
+  
   console.log("[Weekly] buildWeeklyDataFromAPI - calendarData:", calendarData);
 
   dates.forEach((date, idx) => {
     const key = DAY_KEYS[idx];
     const dayStr = window.MediCommon.formatDate(date);
     
+    // 미래 날짜는 건너뛰기
+    if (dayStr > todayStr) {
+      console.log(`[Weekly] ${dayStr}는 미래 날짜이므로 건너뜁니다.`);
+      return;
+    }
+    
     const summary = { success: 0, miss: 0, late: 0 };
     const historyItems = [];
 
-    // 1. 캘린더 API 데이터: 해당 날짜의 복용 기록
+    // 1. 캘린더 API 데이터: 해당 날짜의 복용 기록 (표시용으로만 사용, summary에는 포함 안 함)
     const dayLogs = calendarData[dayStr] || [];
     console.log(`[Weekly] ${dayStr}: dayLogs =`, dayLogs);
     
     dayLogs.forEach(log => {
+      // 로그의 날짜 확인 (recordTime 또는 date 필드)
+      let logDateStr = null;
+      if (log.recordTime) {
+        logDateStr = log.recordTime.includes('T') 
+          ? log.recordTime.split('T')[0] 
+          : log.recordTime.substring(0, 10);
+      } else if (log.date) {
+        logDateStr = log.date;
+      }
+      
+      // 로그의 날짜가 해당 날짜와 일치하지 않거나 미래 날짜면 건너뛰기
+      if (logDateStr && (logDateStr !== dayStr || logDateStr > todayStr)) {
+        console.log(`[Weekly] 로그 날짜 불일치 또는 미래 날짜: ${logDateStr} (예상: ${dayStr})`);
+        return;
+      }
+      
       const apiStatus = log.status || log.intakeStatus;
       const status = STATUS_MAP_FROM_API[apiStatus] || "success";
       
       // SKIPPED는 표시하지 않음
       if (apiStatus === "SKIPPED") return;
       
-      summary[status] = (summary[status] || 0) + 1;
-      
-      const medName = log.medicationName || log.name || "알 수 없음";
-      
-      if (status === "miss") {
-        missAggregator[medName] = (missAggregator[medName] || 0) + 1;
+      // journal이 있는 로그만 summary에 포함 (weekly report에서 추가한 기록)
+      // journal 정보가 있으면 weekly report에서 추가한 것으로 간주
+      const hasJournal = log.journalId || log.memo || log.conditionEmoji;
+      if (hasJournal) {
+        summary[status] = (summary[status] || 0) + 1;
+        
+        const medName = log.medicationName || log.name || "알 수 없음";
+        
+        if (status === "miss") {
+          missAggregator[medName] = (missAggregator[medName] || 0) + 1;
+        }
       }
       
       // 복용 시간 추출
@@ -345,6 +377,8 @@ function buildWeeklyDataFromAPI(anchorDate, medications, calendarData = {}) {
         intakeTime = log.intakeTime.substring(0, 5);
       }
       
+      const medName = log.medicationName || log.name || "알 수 없음";
+      
       historyItems.push({
         logId: log.logId,
         scheduleId: log.scheduleId,
@@ -352,13 +386,13 @@ function buildWeeklyDataFromAPI(anchorDate, medications, calendarData = {}) {
         time: intakeTime,
         name: medName,
         status,
-        condition: "",
-        memo: "",
+        condition: log.conditionEmoji || "",
+        memo: log.memo || log.logMemo || "",
         source: "api"
       });
     });
 
-    // 2. 로컬 저장소 데이터 추가
+    // 2. 로컬 저장소 데이터 추가 (weekly report에서 직접 추가한 기록)
     const localEntries = localHistory[dayStr] || [];
     localEntries.forEach((entry) => {
       const status = entry.status || "success";
@@ -504,7 +538,9 @@ async function initWeeklyPage() {
   const defaultKey = defaultEl?.dataset.day || DAY_KEYS[0];
   selectDay(defaultKey, defaultEl);
 
-  renderSummary(summaryContainerEl, weeklyData.summaryTop);
+  if (summaryContainerEl) {
+    renderSummary(summaryContainerEl, weeklyData.summaryTop);
+  }
 }
 
 /**
@@ -533,6 +569,18 @@ async function handleWeekNav(direction) {
     const dateEl = dayEl.querySelector(".weekly-day-date");
     if (dateEl) dateEl.textContent = dateObj.getDate();
   });
+  
+  // active 클래스가 있는 날짜를 찾아서 선택
+  const activeEl = weeklyDayEls.find((el) => el.classList.contains("active"));
+  if (activeEl) {
+    const activeKey = activeEl.dataset.day;
+    selectDay(activeKey, activeEl);
+  } else {
+    // active가 없으면 첫 번째 날짜 선택
+    const firstEl = weeklyDayEls[0];
+    const firstKey = firstEl?.dataset.day || DAY_KEYS[0];
+    selectDay(firstKey, firstEl);
+  }
 }
 
 function selectDay(dayKey, dayElement) {
@@ -580,7 +628,14 @@ function renderHistory(items, container, selectedDateLabel, dateLabel = "") {
   container.innerHTML = "";
   selectedDateLabel.textContent = dateLabel || "";
 
-  if (!items.length) {
+  // weekly report에서 직접 추가한 기록만 필터링 (로컬 히스토리 또는 journal이 있는 기록)
+  const weeklyRecords = items.filter(item => {
+    // 로컬 히스토리에서 추가한 기록 (source === "local")
+    // 또는 memo나 condition이 있는 기록 (journal이 있는 기록)
+    return item.source === "local" || item.memo || item.condition;
+  });
+
+  if (!weeklyRecords.length) {
     const empty = document.createElement("li");
     empty.textContent = "복용 기록이 없습니다.";
     empty.style.fontSize = "14px";
@@ -589,7 +644,7 @@ function renderHistory(items, container, selectedDateLabel, dateLabel = "") {
     return;
   }
 
-  items.forEach((item) => {
+  weeklyRecords.forEach((item) => {
     const li = document.createElement("li");
     li.className = "weekly-history-item";
     if (item.logId) {
@@ -736,9 +791,20 @@ async function refreshWeeklyDataset() {
   showLoading(false);
   
   refreshWeeklyDots();
-  renderSummary(summaryContainerEl, weeklyData.summaryTop);
-  const selectedEl = weeklyDayEls.find((el) => el.dataset.day === selectedDayKey);
-  selectDay(selectedDayKey, selectedEl || weeklyDayEls[0]);
+  if (summaryContainerEl) {
+    renderSummary(summaryContainerEl, weeklyData.summaryTop);
+  }
+  
+  // active 클래스가 있는 날짜를 찾아서 선택 (없으면 첫 번째 날짜)
+  const activeEl = weeklyDayEls.find((el) => el.classList.contains("active"));
+  if (activeEl) {
+    const activeKey = activeEl.dataset.day;
+    selectDay(activeKey, activeEl);
+  } else {
+    const firstEl = weeklyDayEls[0];
+    const firstKey = firstEl?.dataset.day || DAY_KEYS[0];
+    selectDay(firstKey, firstEl);
+  }
 }
 
 function showLoading(show) {
@@ -756,9 +822,7 @@ function showLoading(show) {
 async function initManualUi() {
   manualRefs = {
     dateInput: document.getElementById("manualDatePicker"),
-    timeInput: document.getElementById("manualTimeInput"),
     memoInput: document.getElementById("manualMemoInput"),
-    statusSelect: document.getElementById("manualStatusSelect"),
     addBtn: document.getElementById("manualAddRecordBtn"),
     drugList: document.getElementById("manualDrugList"),
     groupSelect: document.getElementById("manualGroupSelect"),
@@ -769,7 +833,6 @@ async function initManualUi() {
   if (!manualRefs.dateInput || !manualRefs.drugList) return;
 
   manualRefs.dateInput.value = selectedDateStr;
-  if (manualRefs.timeInput) manualRefs.timeInput.value = getCurrentTime();
 
   await renderManualDrugList();
   renderGroupSelect();
@@ -853,7 +916,7 @@ function isScheduledForDate(frequency, targetDate) {
 }
 
 /**
- * 약 목록 렌더링 (선택된 날짜에 복용해야 하고 + 복용 완료한 약만 표시)
+ * 약 목록 렌더링 (그날 복용하는 약 + medication management에서 복용 완료한 약만 표시)
  */
 async function renderManualDrugList() {
   const container = manualRefs.drugList;
@@ -862,6 +925,11 @@ async function renderManualDrugList() {
   
   // 선택된 날짜 가져오기
   const targetDate = manualRefs.dateInput?.value || selectedDateStr;
+  
+  // 등록된 약 목록 가져오기
+  if (medicationsCache.length === 0) {
+    await fetchMedications();
+  }
   
   // 캘린더 API로 해당 날짜의 복용 기록 가져오기
   let calendarData = {};
@@ -877,37 +945,66 @@ async function renderManualDrugList() {
     console.error("[Weekly] Failed to fetch calendar for drug list:", e);
   }
   
-  // 해당 날짜의 복용 기록
-  const dayLogs = calendarData[targetDate] || [];
-  console.log(`[Weekly] renderManualDrugList - ${targetDate}:`, dayLogs);
-  
-  // 복용 완료한 기록만 필터링 (TAKEN, LATE)
-  const completedLogs = dayLogs.filter(log => {
+  // 해당 날짜의 복용 기록 (TAKEN, LATE만)
+  const dayLogs = (calendarData[targetDate] || []).filter(log => {
     const status = log.status || log.intakeStatus;
     return status === "TAKEN" || status === "LATE";
   });
   
-  // 약 이름별로 그룹화
-  const completedMedications = [];
-  const seenMeds = new Set();
-  
-  completedLogs.forEach(log => {
-    const medName = log.medicationName || log.name;
-    if (!seenMeds.has(medName)) {
-      seenMeds.add(medName);
-      completedMedications.push({
-        name: medName,
-        medicationId: log.medicationId,
-        scheduleId: log.scheduleId,
-        logId: log.logId,
-        category: log.category || ""
-      });
+  // 약 ID별로 복용 기록 그룹화 (약 이름, 시간, logId 등)
+  const completedLogsByMedId = {};
+  dayLogs.forEach(log => {
+    const medId = log.medicationId;
+    if (!completedLogsByMedId[medId]) {
+      completedLogsByMedId[medId] = [];
     }
+    completedLogsByMedId[medId].push({
+      logId: log.logId,
+      scheduleId: log.scheduleId,
+      intakeTime: log.intakeTime ? log.intakeTime.substring(0, 5) : null,
+      medicationName: log.medicationName || log.name
+    });
   });
-
-  if (!completedMedications.length) {
+  
+  // 조건에 맞는 약 필터링
+  const eligibleMeds = medicationsCache.filter(med => {
+    // 1. 해당 날짜에 복용 스케줄이 있는지 확인
+    const schedules = med.schedulesWithLogs || med.schedules || [];
+    if (schedules.length === 0) return false;
+    
+    // 선택된 날짜에 스케줄이 있는지 확인
+    let hasScheduleForDate = false;
+    for (const schedule of schedules) {
+      const frequency = schedule.frequency || "";
+      const startDate = schedule.startDate;
+      const endDate = schedule.endDate;
+      
+      // 날짜 범위 확인
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayStr = window.MediCommon.formatDate(today);
+      
+      if (startDate && targetDate < startDate) continue;
+      if (endDate && targetDate > endDate) continue;
+      if (targetDate > todayStr) continue; // 미래 날짜 제외
+      
+      // 요일 확인
+      if (isScheduledForDate(frequency, targetDate)) {
+        hasScheduleForDate = true;
+        break;
+      }
+    }
+    
+    if (!hasScheduleForDate) return false;
+    
+    // 2. medication management에서 복용 완료한 약인지 확인
+    const medId = med.medicationId;
+    return completedLogsByMedId[medId] && completedLogsByMedId[medId].length > 0;
+  });
+  
+  if (eligibleMeds.length === 0) {
     const empty = document.createElement("p");
-    empty.textContent = `${targetDate}에 복용한 약이 없습니다.`;
+    empty.textContent = `${targetDate}에 복용 완료한 약이 없습니다.`;
     empty.style.fontSize = "13px";
     empty.style.color = "#777";
     container.appendChild(empty);
@@ -920,7 +1017,8 @@ async function renderManualDrugList() {
   manualRefs.saveGroupBtn?.removeAttribute("disabled");
   manualRefs.groupSelect?.removeAttribute("disabled");
 
-  completedMedications.forEach((med, index) => {
+  // 조건에 맞는 약 목록 표시
+  eligibleMeds.forEach((med, index) => {
     const label = document.createElement("label");
     label.className = "manual-drug-item";
     
@@ -931,19 +1029,26 @@ async function renderManualDrugList() {
     checkbox.value = med.name;
     checkbox.dataset.medicationId = med.medicationId;
     
-    // 복용 기록 정보
-    if (med.scheduleId) {
-      checkbox.dataset.scheduleId = med.scheduleId;
-    }
-    if (med.logId) {
-      checkbox.dataset.logId = med.logId;
+    // 해당 약의 복용 기록 정보 사용 (첫 번째 기록)
+    const medLogs = completedLogsByMedId[med.medicationId] || [];
+    if (medLogs.length > 0) {
+      const firstLog = medLogs[0];
+      if (firstLog.scheduleId) {
+        checkbox.dataset.scheduleId = firstLog.scheduleId;
+      }
+      if (firstLog.logId) {
+        checkbox.dataset.logId = firstLog.logId;
+      }
+      if (firstLog.intakeTime) {
+        checkbox.dataset.intakeTime = firstLog.intakeTime;
+      }
     }
     
     const text = document.createElement("span");
     text.textContent = med.name;
     
     const sub = document.createElement("small");
-    sub.textContent = `${med.category || ""} ✓ 복용완료`;
+    sub.textContent = `${med.category || "기타"} ✓ 복용완료`;
     sub.style.color = "#30c85a";
     sub.style.fontSize = "12px";
 
@@ -967,6 +1072,7 @@ function getSelectedDrugs() {
       medicationId: input.dataset.medicationId,
       scheduleId: input.dataset.scheduleId,
       logId: input.dataset.logId ? parseInt(input.dataset.logId) : null,
+      intakeTime: input.dataset.intakeTime || null,
     })
   );
 }
@@ -975,15 +1081,20 @@ function getSelectedDrugs() {
  * 복용 일지 저장 (복용 완료된 약에 대해 컨디션/메모 추가)
  */
 async function handleManualSave() {
-  const dateStr = manualRefs.dateInput?.value || selectedDateStr;
+  // 선택된 날짜 사용 (active 클래스가 있는 날짜)
+  const dateStr = selectedDateStr;
   const selectedDrugs = getSelectedDrugs();
   
   if (!selectedDrugs.length) {
     return alert("약을 최소 1개 선택해주세요.");
   }
 
-  const status = manualRefs.statusSelect?.value || "success";
-  const timeValue = manualRefs.timeInput?.value || getCurrentTime();
+  // 복용 상태는 항상 "success" (복용 완료된 약만 선택 가능하므로)
+  const status = "success";
+  
+  // 선택된 약들의 실제 복용 시간 사용 (medication management에서 복용한 시간)
+  // 여러 약이 선택된 경우 첫 번째 약의 시간 사용
+  const timeValue = selectedDrugs[0]?.intakeTime || getCurrentTime();
   const memo = manualRefs.memoInput?.value.trim() || "";
   const recordTime = formatDateTimeForAPI(dateStr, timeValue);
   
@@ -993,21 +1104,36 @@ async function handleManualSave() {
     manualRefs.addBtn.textContent = "저장 중...";
   }
 
-  // 복용 완료된 약들의 logId 수집
-  const existingLogIds = selectedDrugs
-    .filter((d) => d.logId)
-    .map((d) => d.logId);
-  
+  // 선택된 약들에 대해 복용 로그 생성 또는 기존 logId 수집
+  const logIds = [];
   let hasApiSuccess = false;
-
-  // 일지(컨디션/메모) 저장 - 기존 복용 기록에 연결
-  if (existingLogIds.length > 0 && (manualConditionValue || memo)) {
+  
+  for (const drug of selectedDrugs) {
+    if (drug.logId) {
+      // 기존 logId가 있으면 사용
+      logIds.push(drug.logId);
+    } else if (drug.scheduleId && window.MediAPI) {
+      // logId가 없으면 새로운 복용 로그 생성
+      const apiStatus = STATUS_MAP_TO_API[status] || "TAKEN";
+      const newLog = await window.MediAPI.createIntakeLog(
+        parseInt(drug.scheduleId),
+        apiStatus,
+        recordTime
+      );
+      if (newLog && newLog.logId) {
+        logIds.push(newLog.logId);
+      }
+    }
+  }
+  
+  // 일지(컨디션/메모) 저장 - 생성된 복용 기록에 연결
+  if (logIds.length > 0 && (manualConditionValue || memo)) {
     const conditionEmoji = CONDITION_EMOJI[manualConditionValue] || "";
-    const result = await createJournalRecord(existingLogIds, recordTime, conditionEmoji, memo);
+    const result = await createJournalRecord(logIds, recordTime, conditionEmoji, memo);
     if (result) {
       hasApiSuccess = true;
     }
-  } else if (existingLogIds.length > 0) {
+  } else if (logIds.length > 0) {
     // 컨디션/메모 없이도 성공으로 처리
     hasApiSuccess = true;
   }
@@ -1022,7 +1148,7 @@ async function handleManualSave() {
     time: timeValue,
     condition: manualConditionValue,
     memo,
-    logIds: existingLogIds,
+    logIds: logIds,
     apiSynced: hasApiSuccess,
   };
 
@@ -1032,7 +1158,6 @@ async function handleManualSave() {
 
   // UI 리셋
   manualRefs.memoInput && (manualRefs.memoInput.value = "");
-  manualRefs.timeInput && (manualRefs.timeInput.value = getCurrentTime());
   
   // 체크박스 해제
   document.querySelectorAll(".manual-drug-checkbox:checked").forEach((cb) => {
