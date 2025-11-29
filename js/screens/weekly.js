@@ -834,7 +834,8 @@ async function initManualUi() {
 
   manualRefs.dateInput.value = selectedDateStr;
 
-  await renderManualDrugList();
+  // renderManualDrugList는 initWeeklyPage → selectDay → syncManualDate에서 호출되므로
+  // 여기서는 호출하지 않음 (중복 방지)
   renderGroupSelect();
 
   manualRefs.addBtn?.addEventListener("click", handleManualSave);
@@ -967,7 +968,13 @@ async function renderManualDrugList() {
   });
   
   // 조건에 맞는 약 필터링
+  const seenMedIds = new Set(); // 중복 약 ID 추적
   const eligibleMeds = medicationsCache.filter(med => {
+    const medId = med.medicationId;
+    
+    // 이미 추가된 약이면 건너뛰기 (중복 방지)
+    if (seenMedIds.has(medId)) return false;
+    
     // 1. 해당 날짜에 복용 스케줄이 있는지 확인
     const schedules = med.schedulesWithLogs || med.schedules || [];
     if (schedules.length === 0) return false;
@@ -998,8 +1005,13 @@ async function renderManualDrugList() {
     if (!hasScheduleForDate) return false;
     
     // 2. medication management에서 복용 완료한 약인지 확인
-    const medId = med.medicationId;
-    return completedLogsByMedId[medId] && completedLogsByMedId[medId].length > 0;
+    const isCompleted = completedLogsByMedId[medId] && completedLogsByMedId[medId].length > 0;
+    
+    if (isCompleted) {
+      seenMedIds.add(medId); // 중복 방지를 위해 추가
+    }
+    
+    return isCompleted;
   });
   
   if (eligibleMeds.length === 0) {
