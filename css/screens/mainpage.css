@@ -34,7 +34,7 @@ body{
 
 .dashboard__utility-row{
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    grid-template-columns: 1fr;
     gap: 22px;
 }
 
@@ -95,13 +95,33 @@ body{
 .utility-card--welcome{
     flex-wrap: wrap;
     background: rgba(217, 217, 217, 0.81);
+    padding: 32px 40px;
+    justify-content: space-between;
+    align-items: center;
 }
 
-.utility-card--welcome p{
+.welcome-content{
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+}
+
+.welcome-user-name{
     margin: 0;
     color: #252B61;
     font-weight: 700;
+    font-size: 24px;
     line-height: 1.4;
+}
+
+.welcome-message{
+    margin: 0;
+    color: #252B61;
+    font-weight: 600;
+    font-size: 16px;
+    line-height: 1.5;
+    opacity: 0.9;
 }
 
 .utility-card__status{

@@ -91,20 +91,10 @@
 <main id="main" class="dashboard">
     <div class="dashboard__container">
         <section class="dashboard__utility-row">
-            <article class="utility-card utility-card--search">
-                <form class="utility-card__form" role="search" action="#">
-                    <label class="sr-only" for="dashboardSearch">약품 검색</label>
-                    <i class="fa-solid fa-magnifying-glass utility-card__icon" aria-hidden="true"></i>
-                    <input id="dashboardSearch" type="search" placeholder="Search Here.." autocomplete="off">
-                    <button type="submit" aria-label="검색">
-                        <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
-                    </button>
-                </form>
-            </article>
             <article class="utility-card utility-card--welcome" aria-live="polite">
-                <div>
+                <div class="welcome-content">
                     <p class="welcome-user-name">사용자 님,</p>
-                    <p>오늘의 복용 현황을 확인해보세요</p>
+                    <p class="welcome-message">오늘의 복용 현황을 확인해보세요</p>
                 </div>
                 <span class="utility-card__status" aria-hidden="true"></span>
             </article>
